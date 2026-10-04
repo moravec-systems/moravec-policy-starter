@@ -4,8 +4,8 @@
       "additionalProperties": false,
       "properties": {
         "encoding": {
-          "const": "rgb8-base64",
-          "default": "rgb8-base64",
+          "const": "rgb8",
+          "default": "rgb8",
           "title": "Encoding",
           "type": "string"
         },
@@ -28,6 +28,7 @@
           "type": "array"
         },
         "data": {
+          "format": "base64url",
           "maxLength": 16777216,
           "title": "Data",
           "type": "string"
@@ -36,6 +37,185 @@
           "minimum": 0,
           "title": "Captured At S",
           "type": "number"
+        },
+        "depth": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Depth"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "intrinsic_matrix": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Intrinsic Matrix"
+        },
+        "extrinsics_matrix": {
+          "anyOf": [
+            {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extrinsics Matrix"
+        },
+        "extrinsics_frame": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extrinsics Frame"
         }
       },
       "required": [
@@ -44,6 +224,43 @@
         "captured_at_s"
       ],
       "title": "Camera",
+      "type": "object"
+    },
+    "Depth": {
+      "additionalProperties": false,
+      "properties": {
+        "encoding": {
+          "const": "float32-le-meters",
+          "default": "float32-le-meters",
+          "title": "Encoding",
+          "type": "string"
+        },
+        "shape": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Shape",
+          "type": "array"
+        },
+        "data": {
+          "format": "base64url",
+          "maxLength": 16777216,
+          "title": "Data",
+          "type": "string"
+        }
+      },
+      "required": [
+        "shape",
+        "data"
+      ],
+      "title": "Depth",
       "type": "object"
     },
     "Feedback": {
@@ -138,8 +355,8 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "moravec.observation/v0.2",
-      "default": "moravec.observation/v0.2",
+      "const": "moravec.observation/v0.3",
+      "default": "moravec.observation/v0.3",
       "title": "Schema Version",
       "type": "string"
     },
@@ -214,6 +431,75 @@
         }
       ],
       "default": null
+    },
+    "ee_poses": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Pose"
+      },
+      "title": "Ee Poses",
+      "type": "object"
+    },
+    "joint_velocities": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Joint Velocities",
+      "type": "object"
+    },
+    "gripper_joint_positions": {
+      "additionalProperties": {
+        "items": {
+          "type": "number"
+        },
+        "type": "array"
+      },
+      "title": "Gripper Joint Positions",
+      "type": "object"
+    },
+    "base_pose": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Pose"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "base_twist": {
+      "anyOf": [
+        {
+          "maxItems": 6,
+          "minItems": 6,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Base Twist"
     }
   },
   "required": [

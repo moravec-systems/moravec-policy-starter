@@ -2,20 +2,22 @@
 
 import json
 from pathlib import Path
-from uuid import uuid4
 
-from .contracts import CartesianGoal, Decision, FixtureBackend, JointTrajectory, ModelEndpoint, Pose
+import numpy as np
+
+from .contracts import FixtureBackend, JointTrajectory, ModelEndpoint, Pose, PoseTrajectory
+from .lifecycle import Policy
 from .llm import LLMHarness
 
 
-class FixturePolicy:
+class FixturePolicy(Policy):
     def __init__(self, output):
         self.output = output
 
-    def reset(self):
+    def _reset(self):
         pass
 
-    def predict(self, obs, profile):
+    def _infer(self, obs, profile):
         # Targets are explicit task instructions, not hidden object/scorer state.
         target = json.loads(obs.instruction)
         if self.output == "joint-trajectory":
@@ -24,24 +26,30 @@ class FixturePolicy:
                 points=[{"time_from_start_s": 1.0, "positions": target["joint_target"]}],
             )
         else:
-            action = CartesianGoal(
-                kind="cartesian-goal",
+            from .geometry import multiply
+
+            base = obs.tcp_poses["arm"]
+            q = np.asarray(base.orientation_wxyz)
+            delta = multiply(target["orientation_wxyz"], q * np.array([1, -1, -1, -1]))
+            action = PoseTrajectory(
+                kind="pose-trajectory",
                 arm="arm",
-                duration_s=1.0,
-                target=Pose(
-                    frame="world",
-                    position_m=target["tcp_target_m"],
-                    orientation_wxyz=target["orientation_wxyz"],
-                ),
+                representation="relative",
+                reference="frame",
+                relative_to="observation",
+                timestep_s=1.0,
+                execution_horizon=1,
+                points=[
+                    {
+                        "pose": Pose(
+                            frame=base.frame,
+                            position_m=np.asarray(target["tcp_target_m"]) - base.position_m,
+                            orientation_wxyz=delta,
+                        )
+                    }
+                ],
             )
-        return Decision(
-            episode_id=obs.episode_id,
-            observation_sequence=obs.sequence,
-            decision_id=str(uuid4()),
-            valid_until_station_time_s=obs.captured_at_s + profile.max_observation_age_s,
-            evidence_kind="contract-fixture",
-            action=action,
-        )
+        return action
 
 
 def load_policy(manifest, path: Path):

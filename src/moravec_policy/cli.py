@@ -13,6 +13,7 @@ from .contracts import (
 )
 from .policies import load_policy
 from .provenance import tree_hash
+from .wire import ObservationEnvelope
 
 
 def main():
@@ -38,6 +39,7 @@ def main():
             PolicyManifest,
             RobotProfile,
             Observation,
+            ObservationEnvelope,
             Decision,
             DeploymentManifest,
             DeliveryManifest,
@@ -65,6 +67,7 @@ def main():
         create_app(load_policy(manifest, args.manifest), manifest, token),
         host=args.host,
         port=args.port,
+        ws_max_size=32 * 1024 * 1024,
     )
 
 

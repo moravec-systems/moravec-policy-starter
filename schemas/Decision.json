@@ -1,48 +1,80 @@
 {
   "$defs": {
-    "CartesianGoal": {
+    "CoordinatedAction": {
       "additionalProperties": false,
       "properties": {
         "kind": {
-          "const": "cartesian-goal",
+          "const": "coordinated",
           "title": "Kind",
           "type": "string"
         },
-        "arm": {
-          "title": "Arm",
+        "tracks": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "gripper-command": "#/$defs/GripperCommand",
+                "joint-trajectory": "#/$defs/JointTrajectory",
+                "pose-trajectory": "#/$defs/PoseTrajectory"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/JointTrajectory"
+              },
+              {
+                "$ref": "#/$defs/PoseTrajectory"
+              },
+              {
+                "$ref": "#/$defs/GripperCommand"
+              }
+            ]
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Tracks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "tracks"
+      ],
+      "title": "CoordinatedAction",
+      "type": "object"
+    },
+    "GripperCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "gripper-command",
+          "title": "Kind",
           "type": "string"
         },
-        "target": {
-          "$ref": "#/$defs/Pose"
+        "gripper": {
+          "title": "Gripper",
+          "type": "string"
+        },
+        "open_fraction": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Open Fraction",
+          "type": "number"
         },
         "duration_s": {
           "exclusiveMinimum": 0,
           "maximum": 30,
           "title": "Duration S",
           "type": "number"
-        },
-        "gripper_open_fraction": {
-          "anyOf": [
-            {
-              "maximum": 1,
-              "minimum": 0,
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Gripper Open Fraction"
         }
       },
       "required": [
         "kind",
-        "arm",
-        "target",
+        "gripper",
+        "open_fraction",
         "duration_s"
       ],
-      "title": "CartesianGoal",
+      "title": "GripperCommand",
       "type": "object"
     },
     "JointPoint": {
@@ -58,6 +90,15 @@
             "type": "number"
           },
           "title": "Positions",
+          "type": "object"
+        },
+        "grippers": {
+          "additionalProperties": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "title": "Grippers",
           "type": "object"
         }
       },
@@ -84,6 +125,19 @@
           "minItems": 1,
           "title": "Points",
           "type": "array"
+        },
+        "execution_horizon": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Execution Horizon"
         }
       },
       "required": [
@@ -146,6 +200,103 @@
       "title": "Pose",
       "type": "object"
     },
+    "PosePoint": {
+      "additionalProperties": false,
+      "properties": {
+        "pose": {
+          "$ref": "#/$defs/Pose"
+        },
+        "gripper_open_fraction": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gripper Open Fraction"
+        }
+      },
+      "required": [
+        "pose"
+      ],
+      "title": "PosePoint",
+      "type": "object"
+    },
+    "PoseTrajectory": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "pose-trajectory",
+          "title": "Kind",
+          "type": "string"
+        },
+        "arm": {
+          "title": "Arm",
+          "type": "string"
+        },
+        "representation": {
+          "enum": [
+            "absolute",
+            "relative"
+          ],
+          "title": "Representation",
+          "type": "string"
+        },
+        "reference": {
+          "default": "frame",
+          "enum": [
+            "frame",
+            "tool"
+          ],
+          "title": "Reference",
+          "type": "string"
+        },
+        "relative_to": {
+          "default": "observation",
+          "enum": [
+            "observation",
+            "previous"
+          ],
+          "title": "Relative To",
+          "type": "string"
+        },
+        "timestep_s": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Timestep S",
+          "type": "number"
+        },
+        "execution_horizon": {
+          "exclusiveMinimum": 0,
+          "title": "Execution Horizon",
+          "type": "integer"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/PosePoint"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "title": "Points",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "arm",
+        "representation",
+        "timestep_s",
+        "execution_horizon",
+        "points"
+      ],
+      "title": "PoseTrajectory",
+      "type": "object"
+    },
     "Stop": {
       "additionalProperties": false,
       "properties": {
@@ -170,8 +321,8 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "moravec.decision/v0.2",
-      "default": "moravec.decision/v0.2",
+      "const": "moravec.decision/v0.3",
+      "default": "moravec.decision/v0.3",
       "title": "Schema Version",
       "type": "string"
     },
@@ -202,8 +353,10 @@
     "action": {
       "discriminator": {
         "mapping": {
-          "cartesian-goal": "#/$defs/CartesianGoal",
+          "coordinated": "#/$defs/CoordinatedAction",
+          "gripper-command": "#/$defs/GripperCommand",
           "joint-trajectory": "#/$defs/JointTrajectory",
+          "pose-trajectory": "#/$defs/PoseTrajectory",
           "stop": "#/$defs/Stop"
         },
         "propertyName": "kind"
@@ -213,7 +366,13 @@
           "$ref": "#/$defs/JointTrajectory"
         },
         {
-          "$ref": "#/$defs/CartesianGoal"
+          "$ref": "#/$defs/PoseTrajectory"
+        },
+        {
+          "$ref": "#/$defs/GripperCommand"
+        },
+        {
+          "$ref": "#/$defs/CoordinatedAction"
         },
         {
           "$ref": "#/$defs/Stop"

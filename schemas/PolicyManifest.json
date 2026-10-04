@@ -11,7 +11,7 @@
         "output": {
           "enum": [
             "joint-trajectory",
-            "cartesian-goal"
+            "relative-pose"
           ],
           "title": "Output",
           "type": "string"
@@ -181,7 +181,7 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "moravec.policy/v0.2",
+      "const": "moravec.policy/v0.3",
       "title": "Schema Version",
       "type": "string"
     },
@@ -201,6 +201,22 @@
     "harness_version": {
       "title": "Harness Version",
       "type": "string"
+    },
+    "required_camera_channels": {
+      "additionalProperties": {
+        "items": {
+          "enum": [
+            "rgb",
+            "depth",
+            "intrinsics",
+            "extrinsics"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "title": "Required Camera Channels",
+      "type": "object"
     },
     "runtime_profile": {
       "enum": [

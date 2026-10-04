@@ -1,6 +1,6 @@
 {
-  "schema_version": "moravec.policy/v0.2",
-  "harness_version": "moravec-0.2.0",
+  "schema_version": "moravec.policy/v0.3",
+  "harness_version": "moravec-0.3.0",
   "model": {
     "name": "gpt-6-astra",
     "provider_model_id": "gpt-6-astra"
@@ -16,5 +16,10 @@
     "max_calls": 50,
     "max_output_tokens": 4096,
     "reasoning_effort": "medium"
+  },
+  "required_camera_channels": {
+    "overview": [
+      "rgb"
+    ]
   }
 }

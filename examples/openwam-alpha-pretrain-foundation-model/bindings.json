@@ -8,10 +8,13 @@
     "front": "overview"
   },
   "state_bindings": {
-    "arm": [
-      "shoulder",
-      "elbow"
-    ]
+    "arm": {
+      "source": "joint_positions",
+      "names": [
+        "shoulder",
+        "elbow"
+      ]
+    }
   },
   "state_order": [
     "shoulder",
@@ -23,5 +26,8 @@
       "shoulder",
       "elbow"
     ]
-  }
+  },
+  "timestep_s": 0.02,
+  "observation_period_s": 0.02,
+  "execution_horizon": 1
 }

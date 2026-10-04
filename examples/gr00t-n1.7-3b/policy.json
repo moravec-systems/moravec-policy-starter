@@ -1,6 +1,6 @@
 {
-  "schema_version": "moravec.policy/v0.2",
-  "harness_version": "moravec-0.2.0",
+  "schema_version": "moravec.policy/v0.3",
+  "harness_version": "moravec-0.3.0",
   "model": {
     "name": "gr00t-n1.7-3b",
     "provider_model_id": "nvidia/GR00T-N1.7-3B",
@@ -13,5 +13,10 @@
     "driver": "gr00t",
     "checkpoint_path": "/weights/gr00t-n1.7-3b",
     "binding_config": "bindings.json"
+  },
+  "required_camera_channels": {
+    "overview": [
+      "rgb"
+    ]
   }
 }

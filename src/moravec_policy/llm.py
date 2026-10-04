@@ -8,7 +8,8 @@ import os
 import httpx
 from PIL import Image
 
-from .contracts import CartesianGoal, Decision, ModelEndpoint, PolicyManifest, Stop
+from .contracts import CartesianGoal, ModelEndpoint, PolicyManifest, PoseTrajectory, Stop
+from .lifecycle import Policy
 
 SYSTEM = """Control the robot using only the provided observations and tools. Choose exactly
 one tool per turn. Positions are meters in the declared frame; quaternions are WXYZ.
@@ -61,13 +62,13 @@ def tool_definitions():
 
 def png_url(camera):
     output = io.BytesIO()
-    Image.frombytes("RGB", (camera.shape[1], camera.shape[0]), base64.b64decode(camera.data)).save(
+    Image.frombytes("RGB", (camera.shape[1], camera.shape[0]), camera.data).save(
         output, format="PNG"
     )
     return "data:image/png;base64," + base64.b64encode(output.getvalue()).decode()
 
 
-class LLMHarness:
+class LLMHarness(Policy):
     def __init__(self, manifest: PolicyManifest, client=None, token=None):
         if not isinstance(manifest.backend, ModelEndpoint):
             raise TypeError("LLM harness requires an HTTP model endpoint")
@@ -94,17 +95,17 @@ class LLMHarness:
         )
         self.reset()
 
-    def reset(self):
+    def _reset(self):
         self.history = []
         self.last_response = None
         self.pending = None
         self.calls = 0
 
-    def predict(self, obs, profile):
+    def _infer(self, obs, profile):
         if self.calls >= self.endpoint.max_calls:
             raise RuntimeError("model-call budget exhausted")
         if self.pending:
-            if obs.feedback is None or obs.feedback.decision_id != self.pending:
+            if obs.feedback is None:
                 raise ValueError("measured feedback required for previous tool call")
             self.history.append(
                 {
@@ -169,11 +170,17 @@ class LLMHarness:
             "status": payload["status"],
             "usage": payload.get("usage"),
         }
-        return Decision(
-            episode_id=obs.episode_id,
-            observation_sequence=obs.sequence,
-            decision_id=self.pending,
-            valid_until_station_time_s=obs.captured_at_s + profile.max_observation_age_s,
-            evidence_kind="model-inference",
-            action=action,
-        )
+        if isinstance(action, CartesianGoal):
+            steps = max(1, round(action.duration_s / profile.control_period_s))
+            return PoseTrajectory(
+                kind="pose-trajectory",
+                arm=action.arm,
+                representation="absolute",
+                timestep_s=profile.control_period_s,
+                execution_horizon=steps,
+                points=[
+                    {"pose": action.target, "gripper_open_fraction": action.gripper_open_fraction}
+                    for _ in range(steps)
+                ],
+            )
+        return action

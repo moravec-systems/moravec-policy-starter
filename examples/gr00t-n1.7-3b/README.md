@@ -1,9 +1,9 @@
 # gr00t-n1.7-3b
 
-Unqualified integration template, not a runnable base-checkpoint demo. No GR00T inference has been run locally.
+Unqualified SDK adapter template. No real GR00T weights or GPU inference have been tested here.
 
-NVIDIA's current [official runtime](https://github.com/NVIDIA/Isaac-GR00T#installation) uses CUDA, Python 3.12 and an inference GPU with at least 16 GB VRAM. The starter's CPU fixture image does not supply that runtime. Pin the SDK/checkpoint revision and use the corresponding NVIDIA GPU image/environment.
+Use a pinned [NVIDIA-supported CUDA runtime](https://github.com/NVIDIA/Isaac-GR00T#installation) and checkpoint. The default CPU container is not that runtime. Populate the checkpoint tree hash, embodiment tag and bindings from real metadata; the checked-in values are placeholders.
 
-N1.7 uses relative end-effector actions. The starter's current native adapter supports only qualified absolute-joint outputs, so **the base checkpoint is not compatible as-is**. Implement and test a checkpoint-specific relative-pose/controller adapter, or supply a checkpoint with a verified supported action representation. The camera/state/action bindings here are placeholders, not model metadata.
+The adapter now supports temporal RGB/state input and absolute-joint or absolute/relative end-effector output. Bind translation/rotation/gripper streams explicitly. Supported rotation conversions: WXYZ, rotation vector, XYZ Euler radians, and 6D rows or columns. Specify observation cadence, frame/tool-relative motion, observation/previous-point reference, action timestep and execution horizon. Bimanual pose outputs can use `pose_bindings` to create simultaneous tracks.
 
-Keep `requires-qualification` until a real checkpoint passes the agreed simulation task. Include normalization, camera configuration, control rate and embodiment metadata in qualification. See [README](../../README.md) for the submission flow.
+SDK outputs must already be denormalized, with grippers mapped to 0 closed / 1 open. Do not guess these semantics from tensor dimensions. Keep `requires-qualification` until the actual checkpoint passes the agreed simulation task. Converter tests do not establish model or embodiment compatibility.

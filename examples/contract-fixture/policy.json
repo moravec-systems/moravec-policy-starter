@@ -1,6 +1,6 @@
 {
-  "schema_version": "moravec.policy/v0.2",
-  "harness_version": "moravec-0.2.0",
+  "schema_version": "moravec.policy/v0.3",
+  "harness_version": "moravec-0.3.0",
   "model": {
     "name": "contract-fixture",
     "provider_model_id": "contract-fixture"
@@ -10,5 +10,10 @@
   "backend": {
     "kind": "contract-fixture",
     "output": "joint-trajectory"
+  },
+  "required_camera_channels": {
+    "overview": [
+      "rgb"
+    ]
   }
 }

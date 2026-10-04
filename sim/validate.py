@@ -1,10 +1,9 @@
-"""Physical conformance test: HTTP → Moravec policy → station executor → MuJoCo.
+"""Physical conformance test: WebSocket/MessagePack → Moravec policy → station executor → MuJoCo.
 
 Defaults to explicit test doubles. --live-astra makes at most two OpenAI API calls.
 """
 
 import argparse
-import base64
 import contextlib
 import hashlib
 import json
@@ -27,6 +26,7 @@ from moravec_policy.contracts import (
     Feedback,
     Observation,
     PolicyManifest,
+    PoseTrajectory,
     RobotProfile,
     Stop,
 )
@@ -156,11 +156,15 @@ def main():
     try:
         with serve(model_fixture()) as model_url:
             for mode in (
-                ["gpt-6-astra"] if args.live_astra else ["joint-trajectory", "llm-http-tool-loop"]
+                ["gpt-6-astra"]
+                if args.live_astra
+                else ["joint-trajectory", "relative-pose", "llm-http-tool-loop"]
             ):
-                if mode == "joint-trajectory":
-                    manifest = PolicyManifest.model_validate(base)
-                    policy = FixturePolicy("joint-trajectory")
+                if mode in {"joint-trajectory", "relative-pose"}:
+                    cfg = json.loads(json.dumps(base))
+                    cfg["backend"]["output"] = mode
+                    manifest = PolicyManifest.model_validate(cfg)
+                    policy = FixturePolicy(mode)
                 else:
                     cfg = json.loads((ROOT / "examples/gpt-6-astra/policy.json").read_text())
                     if not args.live_astra:
@@ -174,7 +178,7 @@ def main():
                     policy = LLMHarness(manifest, token=None if args.live_astra else TOKEN)
 
                 with serve(create_app(policy, manifest, TOKEN)) as url:
-                    client = RemotePolicy(url, TOKEN, timeout_s=75)
+                    client = RemotePolicy(url.replace("http://", "ws://"), TOKEN, timeout_s=75)
                     try:
                         for seed in range(1 if args.live_astra else 5):
                             rng = np.random.default_rng(seed)
@@ -211,7 +215,7 @@ def main():
                                     cameras={
                                         "overview": {
                                             "shape": list(rgb.shape),
-                                            "data": base64.b64encode(rgb.tobytes()).decode(),
+                                            "data": rgb.tobytes(),
                                             "captured_at_s": now,
                                         }
                                     },
@@ -233,7 +237,8 @@ def main():
                                     gripper_open_fraction={},
                                     feedback=feedback,
                                 )
-                                decision = client.predict(obs)
+                                client.update_obs(obs)
+                                decision = client.get_action()
                                 validate_decision(decision, obs, profile, float(data.time))
                                 if isinstance(decision.action, Stop):
                                     events.append(
@@ -247,25 +252,48 @@ def main():
                                         }
                                     )
                                     break
-                                if isinstance(decision.action, CartesianGoal):
-                                    command = solve_goal(decision.action)
+                                from moravec_policy.geometry import resolve_pose_chunk
+
+                                action = decision.action
+                                if isinstance(action, PoseTrajectory):
+                                    poses = resolve_pose_chunk(action, obs.tcp_poses[action.arm])
+                                    commands = [
+                                        solve_goal(
+                                            CartesianGoal(
+                                                kind="cartesian-goal",
+                                                arm=action.arm,
+                                                target=p,
+                                                duration_s=action.timestep_s,
+                                            )
+                                        )
+                                        for p in poses
+                                    ]
+                                    times = [
+                                        (i + 1) * action.timestep_s for i in range(len(commands))
+                                    ]
                                 else:
-                                    command = np.array(
-                                        [
-                                            decision.action.points[-1].positions[n]
-                                            for n in ["shoulder", "elbow"]
-                                        ]
-                                    )
-                                # Also validate IK output against joint limits, not only the requested goal.
+                                    points = action.points[
+                                        : action.execution_horizon or len(action.points)
+                                    ]
+                                    commands = [
+                                        np.array([p.positions[n] for n in ["shoulder", "elbow"]])
+                                        for p in points
+                                    ]
+                                    times = [p.time_from_start_s for p in points]
                                 if any(
                                     not j.lower <= v <= j.upper
+                                    for command in commands
                                     for j, v in zip(profile.joints, command)
                                 ):
                                     raise ValueError("planner exceeded joint limits")
-                                initial = data.qpos[:2].copy()
-                                for step in range(750):
-                                    alpha = min(1.0, step * model.opt.timestep)
-                                    data.ctrl[:] = initial + (command - initial) * alpha
+                                times = [0.0, *times]
+                                commands = np.vstack([data.qpos[:2].copy(), *commands])
+                                step_count = math.ceil((times[-1] + 0.5) / model.opt.timestep)
+                                for step in range(step_count):
+                                    elapsed = step * model.opt.timestep
+                                    data.ctrl[:] = [
+                                        np.interp(elapsed, times, commands[:, i]) for i in range(2)
+                                    ]
                                     mujoco.mj_step(model, data)
                                     if any(w.number for w in data.warning):
                                         raise RuntimeError("physics warning invalidates episode")
@@ -276,7 +304,7 @@ def main():
                                     decision_id=decision.decision_id,
                                     status="executed",
                                     reason="measured trajectory completed",
-                                    executed_steps=750,
+                                    executed_steps=step_count,
                                 )
                                 events.append(
                                     {
@@ -311,11 +339,12 @@ def main():
     (args.output / "events.json").write_text(json.dumps(events, indent=2) + "\n")
     report = {
         "simulator": "mujoco",
+        "station_transport": "WebSocket/MessagePack v0.3",
         "simulator_version": mujoco.__version__,
         "model_execution": args.live_astra,
         "test_double": None
         if args.live_astra
-        else "explicit deterministic HTTP/tool and direct-action fixtures",
+        else "explicit deterministic provider and direct-action fixtures",
         "episodes": len(results),
         "passed": sum(r["passed"] for r in results),
         "results": results,

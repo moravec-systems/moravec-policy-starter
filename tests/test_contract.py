@@ -1,4 +1,3 @@
-import base64
 import json
 from pathlib import Path
 
@@ -35,7 +34,7 @@ def obs(profile):
         cameras={
             "overview": {
                 "shape": [1, 1, 3],
-                "data": base64.b64encode(bytes([255, 0, 0])).decode(),
+                "data": bytes([255, 0, 0]),
                 "captured_at_s": 1,
             }
         },
@@ -94,7 +93,7 @@ def test_payload_rejection(obs, issue):
     if issue == "nan":
         data["joint_positions"]["elbow"] = float("nan")
     elif issue == "image":
-        data["cameras"]["overview"]["data"] = "AAAAAA=="
+        data["cameras"]["overview"]["data"] = b"badbytes"
     elif issue == "quat":
         data["tcp_poses"]["arm"]["orientation_wxyz"] = [0, 0, 0, 0]
     else:
@@ -105,7 +104,7 @@ def test_payload_rejection(obs, issue):
 
 @pytest.mark.parametrize("issue", ["expired", "wrong-episode", "limit", "wrong-joint", "duration"])
 def test_executor_rejects_without_actuation(profile, obs, issue):
-    decision = FixturePolicy("joint-trajectory").predict(obs, profile).model_dump()
+    decision = infer(FixturePolicy("joint-trajectory"), obs, profile).model_dump()
     now = obs.station_time_s
     if issue == "expired":
         now = 3
@@ -122,31 +121,59 @@ def test_executor_rejects_without_actuation(profile, obs, issue):
 
 
 def test_lifecycle_feedback_and_reset(client, obs, profile):
-    start = {"episode_id": obs.episode_id, "profile": profile.model_dump()}
-    assert client.post("/v1/episode/start", json=start).status_code == 200
-    assert client.post("/v1/episode/start", json=start).status_code == 409
-    result = client.post("/v1/policy/step", json=obs.model_dump())
-    assert result.status_code == 200
-    assert result.json()["evidence_kind"] == "contract-fixture"
-    assert client.post("/v1/policy/step", json=obs.model_dump()).status_code == 409
-    data = obs.model_dump()
-    data["sequence"] = 1
-    assert client.post("/v1/policy/step", json=data).status_code == 409
-    data["feedback"] = {
-        "decision_id": result.json()["decision_id"],
-        "status": "executed",
-        "reason": "measured",
-        "executed_steps": 50,
-    }
-    assert client.post("/v1/policy/step", json=data).status_code == 200
-    assert client.post("/v1/episode/end", json={"episode_id": "test"}).status_code == 200
-    assert client.post("/v1/episode/start", json=start).status_code == 200
-    assert client.post("/v1/policy/step", json=obs.model_dump()).status_code == 200
+    from moravec_policy.wire import observation_to_wire, pack, unpack
+
+    with client.websocket_connect("/policy") as ws:
+        counter = 0
+
+        def call(method, payload):
+            nonlocal counter
+            counter += 1
+            ws.send_bytes(
+                pack(
+                    {
+                        "protocol": "moravec.policy/v0.3",
+                        "request_id": str(counter),
+                        "method": method,
+                        "payload": payload,
+                    }
+                )
+            )
+            return unpack(ws.receive_bytes())
+
+        start = {"episode_id": obs.episode_id, "profile": profile.model_dump()}
+        assert "result" in call("reset", start)
+        assert "result" in call("update_obs", observation_to_wire(obs))
+        first = call("get_action", {})["result"]
+        assert first["evidence_kind"] == "contract-fixture"
+        assert "error" in call("get_action", {})
+        assert "result" in call("reset", start)
+        assert "result" in call("update_obs", observation_to_wire(obs))
+        first = call("get_action", {})["result"]
+        data = obs.model_dump()
+        data.update(
+            sequence=1,
+            feedback={
+                "decision_id": first["decision_id"],
+                "status": "executed",
+                "reason": "measured",
+                "executed_steps": 50,
+            },
+        )
+        assert "result" in call("update_obs", observation_to_wire(Observation.model_validate(data)))
+        assert "result" in call("get_action", {})
+        assert "result" in call("end", {"episode_id": obs.episode_id})
 
 
 def test_auth(client):
+    from starlette.websockets import WebSocketDisconnect
+
     assert client.get("/health").status_code == 200
-    assert client.get("/v1/capabilities", headers={"Authorization": ""}).status_code == 401
+    with (
+        pytest.raises(WebSocketDisconnect),
+        client.websocket_connect("/policy", headers={"Authorization": "invalid"}),
+    ):
+        pass
 
 
 def llm_config():
@@ -201,17 +228,17 @@ def test_llm_http_schema_and_feedback(profile, obs):
 
     with httpx.Client(transport=httpx.MockTransport(respond)) as http:
         policy = LLMHarness(llm_config(), client=http, token=TOKEN)
-        first = policy.predict(obs, profile)
-        assert first.action.kind == "cartesian-goal"
+        first = infer(policy, obs, profile)
+        assert first.action.kind == "pose-trajectory"
         next_obs = obs.model_copy(update={"sequence": 1})
         with pytest.raises(ValueError, match="feedback"):
-            policy.predict(next_obs, profile)
+            infer(policy, next_obs, profile)
         from moravec_policy.contracts import Feedback
 
         next_obs.feedback = Feedback(
             decision_id=first.decision_id, status="rejected", reason="unreachable", executed_steps=0
         )
-        policy.predict(next_obs, profile)
+        infer(policy, next_obs, profile)
         assert any(
             m.get("type") == "function_call_output" and "unreachable" in m["output"]
             for m in requests[-1]["input"]
@@ -267,7 +294,7 @@ def test_llm_errors_never_become_motion(profile, obs, failure):
         httpx.Client(transport=httpx.MockTransport(respond)) as http,
         pytest.raises((ValueError, httpx.HTTPStatusError)),
     ):
-        LLMHarness(llm_config(), client=http, token=TOKEN).predict(obs, profile)
+        infer(LLMHarness(llm_config(), client=http, token=TOKEN), obs, profile)
 
 
 def test_isolated_blocks_public_llm():
@@ -312,3 +339,74 @@ def test_strict_tool_schema():
 
     for tool in tool_definitions():
         check(tool["parameters"])
+
+
+def infer(policy, obs, profile):
+    if not hasattr(policy, "profile"):
+        policy.configure(profile)
+    policy.update_obs(obs)
+    action = policy.get_action()
+    return Decision(
+        episode_id=obs.episode_id,
+        observation_sequence=obs.sequence,
+        decision_id=getattr(policy, "pending", None) or "test-decision",
+        valid_until_station_time_s=obs.captured_at_s + profile.max_observation_age_s,
+        evidence_kind="contract-fixture",
+        action=action,
+    )
+
+
+def test_multiple_updates_and_duplicate_requests(client, obs, profile):
+    from moravec_policy.wire import observation_to_wire, pack, unpack
+
+    with client.websocket_connect("/policy") as ws:
+
+        def send(request_id, method, payload):
+            ws.send_bytes(
+                pack(
+                    {
+                        "protocol": "moravec.policy/v0.3",
+                        "request_id": request_id,
+                        "method": method,
+                        "payload": payload,
+                    }
+                )
+            )
+            return unpack(ws.receive_bytes())
+
+        assert "result" in send(
+            "1", "reset", {"episode_id": obs.episode_id, "profile": profile.model_dump()}
+        )
+        assert "result" in send("2", "update_obs", observation_to_wire(obs))
+        newer = obs.model_copy(update={"sequence": 1})
+        assert "result" in send("3", "update_obs", observation_to_wire(newer))
+        result = send("4", "get_action", {})
+        assert result["result"]["observation_sequence"] == 1
+        assert "error" in send("4", "get_action", {})
+        assert "error" in send("5", "get_action", {})
+
+
+def test_missing_feedback_faults_session(client, obs, profile):
+    from moravec_policy.wire import observation_to_wire, pack, unpack
+
+    with client.websocket_connect("/policy") as ws:
+
+        def call(i, method, payload):
+            ws.send_bytes(
+                pack(
+                    {
+                        "protocol": "moravec.policy/v0.3",
+                        "request_id": str(i),
+                        "method": method,
+                        "payload": payload,
+                    }
+                )
+            )
+            return unpack(ws.receive_bytes())
+
+        call(1, "reset", {"episode_id": obs.episode_id, "profile": profile.model_dump()})
+        call(2, "update_obs", observation_to_wire(obs))
+        call(3, "get_action", {})
+        next_obs = obs.model_copy(update={"sequence": 1})
+        assert "error" in call(4, "update_obs", observation_to_wire(next_obs))
+        assert "error" in call(5, "get_action", {})
