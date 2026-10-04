@@ -161,8 +161,12 @@ def test_llm_http_schema_and_feedback(profile, obs):
     def respond(request):
         body = json.loads(request.content)
         requests.append(body)
+        assert str(request.url) == "https://api.openai.com/v1/responses"
+        assert body["store"] is False
+        assert body["parallel_tool_calls"] is False
+        assert all(t["strict"] for t in body["tools"])
         assert body["model"] == "gpt-6-astra"
-        assert body["messages"][-1]["content"][1]["text"] == "Camera: overview"
+        assert body["input"][-1]["content"][1]["text"] == "Camera: overview"
         args = {
             "kind": "cartesian-goal",
             "arm": "arm",
@@ -177,20 +181,20 @@ def test_llm_http_schema_and_feedback(profile, obs):
             200,
             json={
                 "model": "gpt-6-astra",
-                "choices": [
+                "status": "completed",
+                "output": [
                     {
-                        "message": {
-                            "role": "assistant",
-                            "content": None,
-                            "tool_calls": [
-                                {
-                                    "id": f"call-{len(requests)}",
-                                    "type": "function",
-                                    "function": {"name": "move_tcp", "arguments": json.dumps(args)},
-                                }
-                            ],
-                        }
-                    }
+                        "type": "reasoning",
+                        "id": "reasoning-1",
+                        "encrypted_content": "opaque",
+                        "summary": [],
+                    },
+                    {
+                        "type": "function_call",
+                        "call_id": f"call-{len(requests)}",
+                        "name": "move_tcp",
+                        "arguments": json.dumps(args),
+                    },
                 ],
             },
         )
@@ -209,29 +213,52 @@ def test_llm_http_schema_and_feedback(profile, obs):
         )
         policy.predict(next_obs, profile)
         assert any(
-            m["role"] == "tool" and "unreachable" in m["content"] for m in requests[-1]["messages"]
+            m.get("type") == "function_call_output" and "unreachable" in m["output"]
+            for m in requests[-1]["input"]
+        )
+        assert any(
+            m.get("type") == "reasoning" and m["encrypted_content"] == "opaque"
+            for m in requests[-1]["input"]
+        )
+        assert (
+            sum(
+                p["type"] == "input_image"
+                for m in requests[-1]["input"]
+                if m.get("role") == "user"
+                for p in m["content"]
+            )
+            == 1
         )
         policy.reset()
-        assert len(policy.history) == 1 and policy.calls == 0
+        assert len(policy.history) == 0 and policy.calls == 0
 
 
-@pytest.mark.parametrize("failure", ["model", "tool", "multiple", "json", "http"])
+@pytest.mark.parametrize(
+    "failure", ["model", "tool", "multiple", "json", "http", "incomplete", "refusal"]
+)
 def test_llm_errors_never_become_motion(profile, obs, failure):
     def respond(request):
         call = {
-            "id": "c",
-            "type": "function",
-            "function": {"name": "stop", "arguments": '{"kind":"stop","reason":"test"}'},
+            "type": "function_call",
+            "call_id": "c",
+            "name": "stop",
+            "arguments": '{"kind":"stop","reason":"test"}',
         }
-        payload = {"model": "gpt-6-astra", "choices": [{"message": {"tool_calls": [call]}}]}
+        payload = {"model": "gpt-6-astra", "status": "completed", "output": [call]}
         if failure == "model":
             payload["model"] = "other-model"
         elif failure == "tool":
-            call["function"]["name"] = "execute_shell"
+            call["name"] = "execute_shell"
         elif failure == "multiple":
-            payload["choices"][0]["message"]["tool_calls"] = [call, call]
+            payload["output"] = [call, call]
         elif failure == "json":
-            call["function"]["arguments"] = "not json"
+            call["arguments"] = "not json"
+        elif failure == "incomplete":
+            payload["status"] = "incomplete"
+        elif failure == "refusal":
+            payload["output"] = [
+                {"type": "message", "content": [{"type": "refusal", "refusal": "no"}]}
+            ]
         elif failure == "http":
             return httpx.Response(402, json={"error": "funding"})
         return httpx.Response(200, json=payload)
@@ -266,3 +293,22 @@ def test_binary_uncertainty():
     assert hi == pytest.approx(1.0)
     with pytest.raises(ValueError):
         wilson_interval(1, 0)
+
+
+def test_strict_tool_schema():
+    from moravec_policy.llm import tool_definitions
+
+    def check(node):
+        if isinstance(node, dict):
+            assert "default" not in node and "prefixItems" not in node
+            if node.get("type") == "object":
+                assert node["additionalProperties"] is False
+                assert set(node["required"]) == set(node["properties"])
+            for value in node.values():
+                check(value)
+        elif isinstance(node, list):
+            for value in node:
+                check(value)
+
+    for tool in tool_definitions():
+        check(tool["parameters"])

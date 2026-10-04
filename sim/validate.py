@@ -1,6 +1,6 @@
 """Physical conformance test: HTTP → Moravec policy → station executor → MuJoCo.
 
-Uses explicit test doubles, never real Astra/GR00T/OpenWAM. No provider API calls.
+Defaults to explicit test doubles. --live-astra makes at most two OpenAI API calls.
 """
 
 import argparse
@@ -9,6 +9,7 @@ import contextlib
 import hashlib
 import json
 import math
+import os
 import socket
 import threading
 import time
@@ -27,6 +28,7 @@ from moravec_policy.contracts import (
     Observation,
     PolicyManifest,
     RobotProfile,
+    Stop,
 )
 from moravec_policy.llm import LLMHarness
 from moravec_policy.policies import FixturePolicy
@@ -66,13 +68,13 @@ def serve(app):
 def model_fixture():
     app = FastAPI()
 
-    @app.post("/v1/chat/completions")
+    @app.post("/v1/responses")
     async def completion(request: Request):
         payload = await request.json()
         if request.headers.get("authorization") != "Bearer " + TOKEN:
             raise RuntimeError("bad fixture token")
-        last = payload["messages"][-1]["content"]
-        assert any(x["type"] == "image_url" for x in last)
+        last = payload["input"][-1]["content"]
+        assert any(x["type"] == "input_image" for x in last)
         obs = json.loads(last[0]["text"])
         target = json.loads(obs["instruction"])
         args = {
@@ -87,19 +89,13 @@ def model_fixture():
         }
         return {
             "model": "contract-fixture-llm",
-            "choices": [
+            "status": "completed",
+            "output": [
                 {
-                    "message": {
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": [
-                            {
-                                "id": f"call-{obs['sequence']}",
-                                "type": "function",
-                                "function": {"name": "move_tcp", "arguments": json.dumps(args)},
-                            }
-                        ],
-                    }
+                    "type": "function_call",
+                    "call_id": f"call-{obs['sequence']}",
+                    "name": "move_tcp",
+                    "arguments": json.dumps(args),
                 }
             ],
         }
@@ -140,7 +136,14 @@ def solve_goal(action):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, default=ROOT / "runs/conformance")
+    parser.add_argument(
+        "--live-astra",
+        action="store_true",
+        help="Make at most two paid OpenAI calls in one simulation episode",
+    )
     args = parser.parse_args()
+    if args.live_astra and not os.getenv("OPENAI_API_KEY"):
+        parser.error("OPENAI_API_KEY is required; no API calls made")
     args.output.mkdir(parents=True, exist_ok=True)
     profile = RobotProfile.model_validate_json((ROOT / "sim/profile.json").read_text())
     base = json.loads((ROOT / "examples/contract-fixture/policy.json").read_text())
@@ -152,23 +155,28 @@ def main():
     renderer = mujoco.Renderer(model, height=240, width=320)
     try:
         with serve(model_fixture()) as model_url:
-            for mode in ["joint-trajectory", "llm-http-tool-loop"]:
+            for mode in (
+                ["gpt-6-astra"] if args.live_astra else ["joint-trajectory", "llm-http-tool-loop"]
+            ):
                 if mode == "joint-trajectory":
                     manifest = PolicyManifest.model_validate(base)
                     policy = FixturePolicy("joint-trajectory")
                 else:
                     cfg = json.loads((ROOT / "examples/gpt-6-astra/policy.json").read_text())
-                    cfg["model"] = {
-                        "name": "contract-fixture-llm",
-                        "provider_model_id": "contract-fixture-llm",
-                    }
-                    cfg["backend"]["url"] = model_url + "/v1/chat/completions"
+                    if not args.live_astra:
+                        cfg["model"] = {
+                            "name": "contract-fixture-llm",
+                            "provider_model_id": "contract-fixture-llm",
+                        }
+                        cfg["backend"]["url"] = model_url + "/v1/responses"
+                    cfg["backend"]["max_calls"] = 2
                     manifest = PolicyManifest.model_validate(cfg)
-                    policy = LLMHarness(manifest, token=TOKEN)
+                    policy = LLMHarness(manifest, token=None if args.live_astra else TOKEN)
+
                 with serve(create_app(policy, manifest, TOKEN)) as url:
-                    client = RemotePolicy(url, TOKEN)
+                    client = RemotePolicy(url, TOKEN, timeout_s=75)
                     try:
-                        for seed in range(5):
+                        for seed in range(1 if args.live_astra else 5):
                             rng = np.random.default_rng(seed)
                             q_target = np.array([rng.uniform(0.1, 0.5), rng.uniform(0.4, 0.9)])
                             target = tcp_target(q_target)
@@ -227,6 +235,18 @@ def main():
                                 )
                                 decision = client.predict(obs)
                                 validate_decision(decision, obs, profile, float(data.time))
+                                if isinstance(decision.action, Stop):
+                                    events.append(
+                                        {
+                                            "episode_id": episode,
+                                            "sequence": seq,
+                                            "decision": decision.model_dump(),
+                                            "provider": policy.last_response
+                                            if isinstance(policy, LLMHarness)
+                                            else None,
+                                        }
+                                    )
+                                    break
                                 if isinstance(decision.action, CartesianGoal):
                                     command = solve_goal(decision.action)
                                 else:
@@ -264,6 +284,9 @@ def main():
                                         "sequence": seq,
                                         "decision": decision.model_dump(),
                                         "feedback": feedback.model_dump(),
+                                        "provider": policy.last_response
+                                        if isinstance(policy, LLMHarness)
+                                        else None,
                                         "measured_tcp_m": data.site("tcp").xpos.tolist(),
                                     }
                                 )
@@ -283,19 +306,24 @@ def main():
                     policy.client.close()
     finally:
         renderer.close()
-    imageio.mimsave(args.output / "conformance.mp4", frames, fps=20, macro_block_size=1)
+    if frames:
+        imageio.mimsave(args.output / "conformance.mp4", frames, fps=20, macro_block_size=1)
     (args.output / "events.json").write_text(json.dumps(events, indent=2) + "\n")
     report = {
         "simulator": "mujoco",
         "simulator_version": mujoco.__version__,
-        "model_execution": False,
-        "test_double": "explicit deterministic HTTP/tool and direct-action fixtures",
+        "model_execution": args.live_astra,
+        "test_double": None
+        if args.live_astra
+        else "explicit deterministic HTTP/tool and direct-action fixtures",
         "episodes": len(results),
         "passed": sum(r["passed"] for r in results),
         "results": results,
         "limitations": [
             "Not Isaac Sim validation",
-            "Not Astra/GR00T/OpenWAM inference",
+            "Not GR00T/OpenWAM inference"
+            if args.live_astra
+            else "Not Astra/GR00T/OpenWAM inference",
             "Not robot task benchmark results",
         ],
         "scene_sha256": hashlib.sha256((ROOT / "sim/reach.xml").read_bytes()).hexdigest(),

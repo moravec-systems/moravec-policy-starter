@@ -1,58 +1,64 @@
 # Moravec policy starter
 
-A proposed, Moravec-owned container contract for running models against simulation and physical stations. Version 0.2 is an executable prototype, not a qualified robot deployment.
+Wrap your model in a container that accepts robot observations and returns actions. Moravec runs that container against its simulator or physical station and scores the resulting episode independently.
 
-The station sends observations to `POST /v1/policy/step`. The policy container returns a typed decision. The station validates that decision, executes it through its controller, and returns measured feedback with the next observation. Scoring belongs to an independent evaluator; a model saying “done” does not establish success.
+**Status:** executable interface prototype. MuJoCo tests use deterministic fixtures by default. GR00T and OpenWAM inference are not qualified. See [validation status](VALIDATION.md).
 
-Two HTTP interfaces have different jobs:
-
-```text
-Station → Moravec policy endpoint → model backend
-        ← typed robot decision   ← model output
-Station validates / plans / executes → next observation + measured feedback
-```
-
-- An LLM backend receives images, state, instructions, tool definitions, and history over HTTP. Our harness turns its tool call into a decision.
-- A learned robot policy receives checkpoint-specific image/state tensors. Our adapter maps its action output into the same decision contract.
-- A world-action model can use that action path. A video-only world model needs a planner or action-selection policy; predicted video alone cannot command a robot. That planner is not implemented here.
-
-## Examples
-
-| Exact normalized model name | Backend | Current status |
-| --- | --- | --- |
-| `gpt-6-astra` | Configurable HTTP chat-completions endpoint | Harness implemented; endpoint is an explicit placeholder, no real inference validated |
-| `gr00t-n1.7-3b` | NVIDIA model SDK, local checkpoint | Driver supplied; requires checkpoint/embodiment qualification and GPU image |
-| `openwam-alpha-pretrain-foundation-model` | OpenWAM SDK, local checkpoint | Driver supplied; base pretrained checkpoint requires adaptation and qualification |
-| `contract-fixture` | Deterministic test policy | Runnable; never a leaderboard model |
-
-Names preserve version dots and otherwise use lowercase dashes. `provider_model_id` separately preserves the exact provider identifier, including namespace/capitalization when required. Never silently replace a requested model with another model.
-
-## Run locally
+## Try it
 
 ```sh
 uv sync --extra sim
-uv run moravec-policy validate examples/gpt-6-astra/policy.json
 uv run pytest -q
 uv run python sim/validate.py
 ```
 
-Simulation writes a report, decision/feedback events, and video to `runs/conformance/`. This is a two-joint MuJoCo interface test with deterministic models, not an Isaac Sim benchmark or a real model evaluation.
+The test sends RGB images and robot state over HTTP, executes returned actions in a small MuJoCo scene, and saves video, events, and a report in `runs/conformance/`. Numeric targets are supplied explicitly: this checks integration, not perception or benchmark performance.
 
-Serve the fixture:
+## Use Astra through OpenAI
+
+Set `OPENAI_API_KEY` securely in your environment, then:
 
 ```sh
-export MORAVEC_POLICY_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
-uv run moravec-policy serve examples/contract-fixture/policy.json
+uv run python sim/validate.py --live-astra --output runs/astra-live
 ```
 
-For a container, keep that token set and run `docker compose up --build`. The default container runs the fixture on an internal network, as a nonroot user, with a read-only root filesystem. Model images require their own pinned CUDA/runtime dependencies; the generic image does not include model weights or SDKs. The API-connected profile needs a separately reviewed egress configuration.
+This makes **at most two paid calls** for one simple simulation episode. The [Astra manifest](examples/gpt-6-astra/policy.json) uses `gpt-6-astra` directly at `https://api.openai.com/v1/responses`, with no gateway or model substitution. The request contains image inputs, robot state, instruction and strict function tools. We return measured execution feedback as `function_call_output`, retain response reasoning items between calls, and use `store: false`. API data-handling terms still apply; this is not a claim of zero retention.
 
-## Read next
+The harness converts a model tool call into a validated station decision. It never gives the LLM direct hardware access. OpenAI references: [Responses quickstart](https://developers.openai.com/api/docs/quickstart), [function calling](https://developers.openai.com/api/docs/guides/function-calling), [reasoning state](https://developers.openai.com/api/docs/guides/reasoning).
 
-- [HTTP contract and harness inputs/outputs](docs/harnesses.md)
-- [Simulation qualification plan](docs/simulation-validation.md)
-- [Updated customer requirements and deployment boundaries](docs/customer-requirements.md)
-- [Validation evidence](VALIDATION.md)
-- [Generated JSON schemas](schemas/)
+## Implement a policy
 
-Model access, deployment, and results delivery are separate contracts. Team, billing, and budget management are outside this starter.
+Implement two methods: `reset()` and `predict(observation, robot_profile) -> Decision`. The [fixture policy](src/moravec_policy/policies.py) is the smallest working example; [native.py](src/moravec_policy/native.py) shows learned-model adaptation. Use [create_app](src/moravec_policy/service.py) to expose your implementation without rewriting the HTTP service.
+
+| Boundary | Input | Output |
+| --- | --- | --- |
+| Station → policy container | RGB cameras, named joint state, TCP poses, instruction, timestamps and prior execution feedback | Named-joint trajectory, Cartesian goal, or stop |
+| Harness → OpenAI | Images, state, instruction, tool schemas and conversation state | Structured function call |
+| Adapter → local model | Checkpoint-specific image/state tensors and language | Checkpoint-specific actions translated into the station's units and joint/frame names |
+
+The [Python contracts](src/moravec_policy/contracts.py) and generated [OpenAPI](schemas/policy.openapi.json) are authoritative. Units: meters/radians, seconds, WXYZ quaternions. Robot profile IDs/revisions bind joint limits, frames, cameras and timing. A model's stop request is not a successful score.
+
+The HTTP lifecycle is `POST /v1/episode/start`, repeated `POST /v1/policy/step`, then `POST /v1/episode/end`, authenticated by `MORAVEC_POLICY_TOKEN`. One container replica handles one active episode. The station checks expiry against its own current clock and owns planning, execution, safety and scoring. The included planar executor is only a test fixture, not a production controller.
+
+## Package for evaluation
+
+1. Agree on the task, robot profile, observation channels and action representation with Moravec.
+2. Adapt the model without changing the contract, evaluator, scene, seeds or scoring rules.
+3. Run contract tests and the local simulator. Qualify the actual checkpoint in the agreed Isaac Sim task before claiming readiness.
+4. Build a model-specific container with pinned runtime/SDK versions. Submit its immutable image digest, policy manifest, checkpoint/binding hashes, resource requirements and validation report. Supply registry access through a separate secret channel.
+
+`docker compose up --build` runs the deterministic fixture once `MORAVEC_POLICY_TOKEN` is set. The default image contains neither GPU SDKs nor model weights. For an isolated customer deployment, all inference assets must be local and no internet is allowed; an external OpenAI API deployment is a separate, explicitly API-connected profile. Results export is outside the inference container.
+
+## Model examples
+
+- [gpt-6-astra](examples/gpt-6-astra): direct OpenAI Responses harness.
+- [gr00t-n1.7-3b](examples/gr00t-n1.7-3b): NVIDIA SDK adapter template; needs a CUDA environment, checkpoint and verified embodiment bindings.
+- [openwam-alpha-pretrain-foundation-model](examples/openwam-alpha-pretrain-foundation-model): world-action adapter template; the base pretrained checkpoint needs adaptation. A video-only world model additionally needs an action-selection planner, which is not provided here.
+
+Bindings marked `requires-qualification` intentionally refuse inference. Do not change that flag until action units, order, normalization, timing and embodiment compatibility have been tested with the actual checkpoint.
+
+## Using an agent
+
+Give the agent this repository, the model SDK/checkpoint reference, the agreed robot profile, and access to a suitable runtime. Ask it to **implement the adapter and prove compatibility**, not recreate the evaluation system. [AGENTS.md](AGENTS.md) supplies the adaptation and evidence requirements. Missing checkpoint metadata or incompatible action semantics must be reported rather than guessed.
+
+For NVIDIA, share a clean snapshot containing this README, contracts, adapter example, container recipe and conformance tests. Keep internal research, SOW discussion, private results and credentials separate. This private development repository's Git history contains earlier internal notes, so do not treat its full history as the customer handoff package.

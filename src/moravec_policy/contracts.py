@@ -28,7 +28,7 @@ class ModelIdentity(Contract):
 class ModelEndpoint(Contract):
     kind: Literal["http-llm"]
     url: str
-    api: Literal["chat-completions"]
+    api: Literal["openai-responses"]
     token_env: str
     timeout_s: float = Field(gt=0, le=120)
     max_calls: int = Field(gt=0, le=200)

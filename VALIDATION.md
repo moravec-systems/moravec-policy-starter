@@ -2,14 +2,18 @@
 
 ## Verified locally
 
-- 31 tests passed: contract parsing, observation freshness/camera synchronization, finite values, frame and joint checks, action expiry, HTTP authentication, episode lifecycle, feedback matching, LLM tool parsing/provider errors, reset behavior, and refusal of unqualified native checkpoints.
+- 34 tests passed: contract parsing, observation freshness/camera synchronization, finite values, frame and joint checks, action expiry, HTTP authentication, episode lifecycle, feedback matching, LLM tool parsing/provider errors, reset behavior, and refusal of unqualified native checkpoints.
 - Ruff checks and formatting passed.
 - Ten physical MuJoCo 3.14.0 episodes passed through actual local HTTP servers: five joint-trajectory episodes and five LLM-harness episodes using an explicit deterministic HTTP model. Twenty decisions total.
 - Final TCP position errors ranged from 0.014 to 0.028 mm against a 10 mm conformance threshold. These are controller/interface checks with supplied numeric targets, not model performance scores.
 - Physics warnings invalidate episodes. The initial Euler-integrator run was unstable; switching this stiff position-controller fixture to implicitfast resolved it. The successful rerun completed without physics warnings.
 - Generated schema and OpenAPI files describe the implemented contract.
 
-The committed [conformance report](validation/conformance-report.json) records the scene hash and explicit model-execution=false status. Local video and event traces are in `runs/conformance/`; checksums are in [artifact hashes](validation/artifacts.json).
+The committed [conformance report](validation/conformance-report.json) records the scene hash and explicit model-execution=false status. Local video and event traces are in `runs/responses-conformance/`; checksums are in [artifact hashes](validation/artifacts.json).
+
+## Direct OpenAI integration
+
+The Astra example now targets the official Responses endpoint with strict tools, encrypted reasoning continuity and store=false. Offline tests and the ten physical conformance episodes passed with the updated transport. The live command is limited to two calls and one episode. It was invoked but stopped before any request because OPENAI_API_KEY was unavailable in the process environment. Actual account access and real inference remain unverified.
 
 ## Not yet verified
 

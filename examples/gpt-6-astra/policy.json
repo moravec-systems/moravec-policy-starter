@@ -9,9 +9,9 @@
   "runtime_profile": "api-connected",
   "backend": {
     "kind": "http-llm",
-    "url": "https://model-gateway.example.invalid/v1/chat/completions",
-    "api": "chat-completions",
-    "token_env": "ASTRA_API_KEY",
+    "url": "https://api.openai.com/v1/responses",
+    "api": "openai-responses",
+    "token_env": "OPENAI_API_KEY",
     "timeout_s": 60,
     "max_calls": 50,
     "max_output_tokens": 4096,

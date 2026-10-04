@@ -1,5 +1,9 @@
 # gpt-6-astra
 
-Set the full HTTP endpoint and exact provider model ID in policy.json. Supply ASTRA_API_KEY at runtime. The example URL is intentionally invalid; model availability and provider support must be verified before use.
+Direct OpenAI Responses API example. Supply `OPENAI_API_KEY` at runtime, then run from the repository root:
 
-This example has not executed real model inference. See [harness details](../../docs/harnesses.md) and [validation gates](../../docs/simulation-validation.md).
+```sh
+uv run python sim/validate.py --live-astra --output runs/astra-live
+```
+
+At most two paid calls, one MuJoCo episode, no model substitution. The fixture target is numeric; this validates inference/action integration rather than a customer benchmark. Check the root VALIDATION.md for actual execution status.

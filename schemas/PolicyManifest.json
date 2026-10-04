@@ -71,7 +71,7 @@
           "type": "string"
         },
         "api": {
-          "const": "chat-completions",
+          "const": "openai-responses",
           "title": "Api",
           "type": "string"
         },
