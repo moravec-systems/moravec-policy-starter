@@ -59,6 +59,6 @@ Bindings marked `requires-qualification` intentionally refuse inference. Do not 
 
 ## Using an agent
 
-Give the agent this repository, the model SDK/checkpoint reference, the agreed robot profile, and access to a suitable runtime. Ask it to **implement the adapter and prove compatibility**, not recreate the evaluation system. [AGENTS.md](AGENTS.md) supplies the adaptation and evidence requirements. Missing checkpoint metadata or incompatible action semantics must be reported rather than guessed.
+Give the agent this repository, the model SDK/checkpoint reference, the agreed robot profile, and access to a suitable runtime. Ask it to **implement the adapter and prove compatibility**, not recreate the evaluation system. Missing checkpoint metadata or incompatible action semantics must be reported rather than guessed.
 
 For NVIDIA, share a clean snapshot containing this README, contracts, adapter example, container recipe and conformance tests. Keep internal research, SOW discussion, private results and credentials separate. This private development repository's Git history contains earlier internal notes, so do not treat its full history as the customer handoff package.
