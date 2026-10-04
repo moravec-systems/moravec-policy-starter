@@ -2,9 +2,8 @@
 !Dockerfile
 !pyproject.toml
 !README.md
+!requirements.lock
 !src/
 !src/**
 !examples/
-!examples/mock/
-!examples/mock/**
-!requirements.lock
+!examples/**

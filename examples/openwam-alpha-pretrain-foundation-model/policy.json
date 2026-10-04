@@ -1,0 +1,17 @@
+{
+  "schema_version": "moravec.policy/v0.2",
+  "harness_version": "moravec-0.2.0",
+  "model": {
+    "name": "openwam-alpha-pretrain-foundation-model",
+    "provider_model_id": "OpenWAM/OpenWAM-Alpha-Pretrain-Foundation-Model",
+    "artifact_uri": "hf://OpenWAM/OpenWAM-Alpha-Pretrain-Foundation-Model"
+  },
+  "family": "world-action",
+  "runtime_profile": "isolated",
+  "backend": {
+    "kind": "local-model",
+    "driver": "openwam",
+    "checkpoint_path": "/weights/openwam-alpha-pretrain-foundation-model",
+    "binding_config": "bindings.json"
+  }
+}

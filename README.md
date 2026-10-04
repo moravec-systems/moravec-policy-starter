@@ -1,70 +1,58 @@
 # Moravec policy starter
 
-A local sample repository for onboarding robot policy systems: **Astra (LLM + reference harness), NVIDIA GR00T N1.7 (VLA), and OpenWAM (world-action model)**. Built around pinned XPolicyLab adapters and RoboProbe's actual LLM harness, not a new robotics controller.
+A proposed, Moravec-owned container contract for running models against simulation and physical stations. Version 0.2 is an executable prototype, not a qualified robot deployment.
 
-**Status:** runnable CPU contract demo, authenticated reference service/client, strict schemas, and source-pinned real-model integration examples. Real Astra/GR00T/OpenWAM inference has **not** been run from this repo. No GPU provisioned, weights downloaded, or API credits spent to create it. This is a proposed Moravec interface, not an official XPolicyLab wire standard.
+The station sends observations to `POST /v1/policy/step`. The policy container returns a typed decision. The station validates that decision, executes it through its controller, and returns measured feedback with the next observation. Scoring belongs to an independent evaluator; a model saying “done” does not establish success.
 
-| Example | Integration | Output | Still needed for a real run |
-| --- | --- | --- | --- |
-| [Astra](examples/astra/README.md) | Native RoboProbe EEF harness | Grasp-point tool calls → planned native joint actions | Astra endpoint/key, native compatible RoboDojo runtime |
-| [GR00T N1.7](examples/groot/README.md) | Existing XPolicyLab GR00T_N17 adapter | Joint action chunks | Compatible fine-tuned checkpoint, modality config, CUDA environment |
-| [OpenWAM](examples/openwam/README.md) | Existing XPolicyLab OpenWAM adapter | Absolute EE action chunks | Released RoboDojo checkpoint, normalization, CUDA environment |
-| [Remote](examples/remote/README.md) | Authenticated HTTP policy client | Same action contract | A running compatible service |
-| Mock | Hold measured state | Explicitly labeled mock chunk | Nothing; contract testing only |
-
-## Try it locally (no GPU, model key, or simulator)
-
-```bash
-uv sync --locked
-uv run pytest
-uv run moravec-policy validate examples/astra/policy.json
-uv run moravec-policy validate examples/groot/policy.json
-uv run moravec-policy validate examples/openwam/policy.json
-uv run moravec-policy schemas schemas
-
-# Terminal 1. Pick a local test token and use the same token in terminal 2.
-export MORAVEC_POLICY_TOKEN='local-contract-test-token-only'
-uv run moravec-policy serve examples/mock/policy.json
-
-# Terminal 2
-export MORAVEC_POLICY_TOKEN='local-contract-test-token-only'
-uv run python examples/remote/client.py
-```
-
-The result must say `evidence_kind: mock`. It is not task execution or a benchmark score. The synthetic RGB fixture is a four-color 2×2 image; zero joints/poses are schema examples, not safe robot commands.
-
-## How the pieces fit
+Two HTTP interfaces have different jobs:
 
 ```text
-Customer model + preprocessing + memory + optional harness
-                         ↓
-              versioned policy manifest
-                         ↓
-    local container or remote policy deployment
-                         ↓
-     episode observations → inference → action chunks
-                         ↓
-    benchmark-owned execution, scoring, video and logs
+Station → Moravec policy endpoint → model backend
+        ← typed robot decision   ← model output
+Station validates / plans / executes → next observation + measured feedback
 ```
 
-The SDK wraps the existing GR00T/OpenWAM adapters. Those upstream adapters own frame conversions and normalization. Astra retains the environment-side RoboProbe harness; its `model.py` is a compatibility stub, not an inference server. `astra-plan` constructs the official fixed-layout command and only executes with `--execute`. We do not pretend all three models use the same upstream process topology.
+- An LLM backend receives images, state, instructions, tool definitions, and history over HTTP. Our harness turns its tool call into a decision.
+- A learned robot policy receives checkpoint-specific image/state tensors. Our adapter maps its action output into the same decision contract.
+- A world-action model can use that action path. A video-only world model needs a planner or action-selection policy; predicted video alone cannot command a robot. That planner is not implemented here.
 
-- [Contract and schema decisions](docs/contract.md)
-- [Validation and limits](docs/validation.md)
-- [Deployment/container guide](docs/deployment.md)
-- [Sources and provenance](docs/sources.md)
-- [Adding VLMs, pure world models, and other policies](docs/model-types.md)
+## Examples
 
-Start with one episode per worker. Scale independent workers; native model batching is intentionally not exposed by this starter. Keep the policy manifest, deployment digest, evaluation spec, runtime version and native result together. Container/API readiness and physical readiness are separate qualifications.
+| Exact normalized model name | Backend | Current status |
+| --- | --- | --- |
+| `gpt-6-astra` | Configurable HTTP chat-completions endpoint | Harness implemented; endpoint is an explicit placeholder, no real inference validated |
+| `gr00t-n1.7-3b` | NVIDIA model SDK, local checkpoint | Driver supplied; requires checkpoint/embodiment qualification and GPU image |
+| `openwam-alpha-pretrain-foundation-model` | OpenWAM SDK, local checkpoint | Driver supplied; base pretrained checkpoint requires adaptation and qualification |
+| `contract-fixture` | Deterministic test policy | Runnable; never a leaderboard model |
 
-## CPU example container
+Names preserve version dots and otherwise use lowercase dashes. `provider_model_id` separately preserves the exact provider identifier, including namespace/capitalization when required. Never silently replace a requested model with another model.
 
-```bash
-docker build -t moravec-policy-starter:local .
-docker run --rm -p 127.0.0.1:8000:8000 \
-  -e MORAVEC_POLICY_TOKEN moravec-policy-starter:local
+## Run locally
+
+```sh
+uv sync --extra sim
+uv run moravec-policy validate examples/gpt-6-astra/policy.json
+uv run pytest -q
+uv run python sim/validate.py
 ```
 
-This image contains only the mock adapter and SDK. For GPU examples install the SDK into the corresponding upstream environment; don't install incompatible model stacks into one universal image. The image build itself has not been verified unless recorded in `VALIDATION.md`.
+Simulation writes a report, decision/feedback events, and video to `runs/conformance/`. This is a two-joint MuJoCo interface test with deterministic models, not an Isaac Sim benchmark or a real model evaluation.
 
-No credentials, customer documents, checkpoint binaries, or benchmark results are included. Source licenses and model asset terms remain separate; this sample does not redistribute third-party weights.
+Serve the fixture:
+
+```sh
+export MORAVEC_POLICY_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+uv run moravec-policy serve examples/contract-fixture/policy.json
+```
+
+For a container, keep that token set and run `docker compose up --build`. The default container runs the fixture on an internal network, as a nonroot user, with a read-only root filesystem. Model images require their own pinned CUDA/runtime dependencies; the generic image does not include model weights or SDKs. The API-connected profile needs a separately reviewed egress configuration.
+
+## Read next
+
+- [HTTP contract and harness inputs/outputs](docs/harnesses.md)
+- [Simulation qualification plan](docs/simulation-validation.md)
+- [Updated customer requirements and deployment boundaries](docs/customer-requirements.md)
+- [Validation evidence](VALIDATION.md)
+- [Generated JSON schemas](schemas/)
+
+Model access, deployment, and results delivery are separate contracts. Team, billing, and budget management are outside this starter.

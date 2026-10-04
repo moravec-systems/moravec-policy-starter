@@ -1,0 +1,235 @@
+{
+  "$defs": {
+    "CartesianGoal": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "cartesian-goal",
+          "title": "Kind",
+          "type": "string"
+        },
+        "arm": {
+          "title": "Arm",
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/Pose"
+        },
+        "duration_s": {
+          "exclusiveMinimum": 0,
+          "maximum": 30,
+          "title": "Duration S",
+          "type": "number"
+        },
+        "gripper_open_fraction": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gripper Open Fraction"
+        }
+      },
+      "required": [
+        "kind",
+        "arm",
+        "target",
+        "duration_s"
+      ],
+      "title": "CartesianGoal",
+      "type": "object"
+    },
+    "JointPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "time_from_start_s": {
+          "exclusiveMinimum": 0,
+          "title": "Time From Start S",
+          "type": "number"
+        },
+        "positions": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Positions",
+          "type": "object"
+        }
+      },
+      "required": [
+        "time_from_start_s",
+        "positions"
+      ],
+      "title": "JointPoint",
+      "type": "object"
+    },
+    "JointTrajectory": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "joint-trajectory",
+          "title": "Kind",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/JointPoint"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "title": "Points",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "points"
+      ],
+      "title": "JointTrajectory",
+      "type": "object"
+    },
+    "Pose": {
+      "additionalProperties": false,
+      "properties": {
+        "frame": {
+          "title": "Frame",
+          "type": "string"
+        },
+        "position_m": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position M",
+          "type": "array"
+        },
+        "orientation_wxyz": {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Orientation Wxyz",
+          "type": "array"
+        }
+      },
+      "required": [
+        "frame",
+        "position_m",
+        "orientation_wxyz"
+      ],
+      "title": "Pose",
+      "type": "object"
+    },
+    "Stop": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "stop",
+          "title": "Kind",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "reason"
+      ],
+      "title": "Stop",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "moravec.decision/v0.2",
+      "default": "moravec.decision/v0.2",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "episode_id": {
+      "title": "Episode Id",
+      "type": "string"
+    },
+    "observation_sequence": {
+      "title": "Observation Sequence",
+      "type": "integer"
+    },
+    "decision_id": {
+      "title": "Decision Id",
+      "type": "string"
+    },
+    "valid_until_station_time_s": {
+      "title": "Valid Until Station Time S",
+      "type": "number"
+    },
+    "evidence_kind": {
+      "enum": [
+        "model-inference",
+        "contract-fixture"
+      ],
+      "title": "Evidence Kind",
+      "type": "string"
+    },
+    "action": {
+      "discriminator": {
+        "mapping": {
+          "cartesian-goal": "#/$defs/CartesianGoal",
+          "joint-trajectory": "#/$defs/JointTrajectory",
+          "stop": "#/$defs/Stop"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/JointTrajectory"
+        },
+        {
+          "$ref": "#/$defs/CartesianGoal"
+        },
+        {
+          "$ref": "#/$defs/Stop"
+        }
+      ],
+      "title": "Action"
+    }
+  },
+  "required": [
+    "episode_id",
+    "observation_sequence",
+    "decision_id",
+    "valid_until_station_time_s",
+    "evidence_kind",
+    "action"
+  ],
+  "title": "Decision",
+  "type": "object"
+}

@@ -1,1 +1,1 @@
-"""Moravec's proposed policy interface, not an upstream XPolicyLab protocol."""
+"""Moravec model access and station policy contracts."""

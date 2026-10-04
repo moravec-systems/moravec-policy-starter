@@ -1,11 +1,14 @@
 [project]
 name = "moravec-policy-starter"
-version = "0.1.0"
+version = "0.2.0"
 description = "Versioned policy contracts and source-pinned robot model examples"
 requires-python = ">=3.10"
-dependencies = ["pydantic>=2.10,<3", "numpy>=1.26,<3", "fastapi>=0.115,<1", "uvicorn>=0.34,<1", "httpx>=0.28,<1"]
+dependencies = ["pydantic>=2.10,<3", "numpy>=1.26,<3", "fastapi>=0.115,<1", "uvicorn>=0.34,<1", "httpx>=0.28,<1", "pillow>=11,<13"]
 [project.scripts]
 moravec-policy = "moravec_policy.cli:main"
+[project.optional-dependencies]
+sim = ["mujoco>=3.3,<4", "imageio>=2.37,<3", "imageio-ffmpeg>=0.6,<1"]
+
 [dependency-groups]
 dev = ["pytest>=8,<9", "ruff>=0.11,<1"]
 [build-system]

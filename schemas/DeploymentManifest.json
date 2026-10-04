@@ -1,104 +1,63 @@
 {
-  "$defs": {
-    "ContainerDeployment": {
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "const": "container",
-          "title": "Kind",
-          "type": "string"
-        },
-        "image": {
-          "pattern": "^.+@sha256:[0-9a-f]{64}$",
-          "title": "Image",
-          "type": "string"
-        },
-        "token_secret_ref": {
-          "title": "Token Secret Ref",
-          "type": "string"
-        },
-        "gpu_count": {
-          "minimum": 0,
-          "title": "Gpu Count",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "kind",
-        "image",
-        "token_secret_ref",
-        "gpu_count"
-      ],
-      "title": "ContainerDeployment",
-      "type": "object"
-    },
-    "RemoteDeployment": {
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "const": "remote",
-          "title": "Kind",
-          "type": "string"
-        },
-        "endpoint": {
-          "pattern": "^https://[^\\s]+$",
-          "title": "Endpoint",
-          "type": "string"
-        },
-        "token_secret_ref": {
-          "title": "Token Secret Ref",
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind",
-        "endpoint",
-        "token_secret_ref"
-      ],
-      "title": "RemoteDeployment",
-      "type": "object"
-    }
-  },
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "moravec.deployment/v0.1",
+      "const": "moravec.deployment/v0.2",
       "title": "Schema Version",
       "type": "string"
     },
-    "policy_id": {
-      "title": "Policy Id",
+    "image": {
+      "pattern": "^.+@sha256:[0-9a-f]{64}$",
+      "title": "Image",
       "type": "string"
     },
-    "policy_manifest_sha256": {
-      "pattern": "^[0-9a-f]{64}$",
-      "title": "Policy Manifest Sha256",
+    "registry_pull_secret_ref": {
+      "title": "Registry Pull Secret Ref",
       "type": "string"
     },
-    "backend": {
-      "discriminator": {
-        "mapping": {
-          "container": "#/$defs/ContainerDeployment",
-          "remote": "#/$defs/RemoteDeployment"
-        },
-        "propertyName": "kind"
-      },
-      "oneOf": [
-        {
-          "$ref": "#/$defs/ContainerDeployment"
-        },
-        {
-          "$ref": "#/$defs/RemoteDeployment"
-        }
+    "network_profile": {
+      "enum": [
+        "isolated",
+        "api-connected"
       ],
-      "title": "Backend"
+      "title": "Network Profile",
+      "type": "string"
+    },
+    "model_endpoint_allowlist": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Model Endpoint Allowlist",
+      "type": "array"
+    },
+    "results_destination": {
+      "title": "Results Destination",
+      "type": "string"
+    },
+    "results_write_secret_ref": {
+      "title": "Results Write Secret Ref",
+      "type": "string"
+    },
+    "retention_days": {
+      "minimum": 0,
+      "title": "Retention Days",
+      "type": "integer"
+    },
+    "publication_opt_in": {
+      "default": false,
+      "title": "Publication Opt In",
+      "type": "boolean"
     }
   },
   "required": [
     "schema_version",
-    "policy_id",
-    "policy_manifest_sha256",
-    "backend"
+    "image",
+    "registry_pull_secret_ref",
+    "network_profile",
+    "results_destination",
+    "results_write_secret_ref",
+    "retention_days"
   ],
   "title": "DeploymentManifest",
   "type": "object"

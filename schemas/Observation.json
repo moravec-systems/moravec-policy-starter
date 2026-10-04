@@ -1,41 +1,5 @@
 {
   "$defs": {
-    "ArmState": {
-      "additionalProperties": false,
-      "properties": {
-        "joints": {
-          "items": {
-            "type": "number"
-          },
-          "maxItems": 6,
-          "minItems": 6,
-          "title": "Joints",
-          "type": "array"
-        },
-        "gripper": {
-          "maximum": 1,
-          "minimum": 0,
-          "title": "Gripper",
-          "type": "number"
-        },
-        "ee_pose": {
-          "items": {
-            "type": "number"
-          },
-          "maxItems": 7,
-          "minItems": 7,
-          "title": "Ee Pose",
-          "type": "array"
-        }
-      },
-      "required": [
-        "joints",
-        "gripper",
-        "ee_pose"
-      ],
-      "title": "ArmState",
-      "type": "object"
-    },
     "Camera": {
       "additionalProperties": false,
       "properties": {
@@ -68,31 +32,118 @@
           "title": "Data",
           "type": "string"
         },
-        "captured_at_ns": {
+        "captured_at_s": {
           "minimum": 0,
-          "title": "Captured At Ns",
-          "type": "integer"
+          "title": "Captured At S",
+          "type": "number"
         }
       },
       "required": [
         "shape",
         "data",
-        "captured_at_ns"
+        "captured_at_s"
       ],
       "title": "Camera",
+      "type": "object"
+    },
+    "Feedback": {
+      "additionalProperties": false,
+      "properties": {
+        "decision_id": {
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "executed",
+            "rejected",
+            "interrupted"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "executed_steps": {
+          "minimum": 0,
+          "title": "Executed Steps",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "decision_id",
+        "status",
+        "reason",
+        "executed_steps"
+      ],
+      "title": "Feedback",
+      "type": "object"
+    },
+    "Pose": {
+      "additionalProperties": false,
+      "properties": {
+        "frame": {
+          "title": "Frame",
+          "type": "string"
+        },
+        "position_m": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position M",
+          "type": "array"
+        },
+        "orientation_wxyz": {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Orientation Wxyz",
+          "type": "array"
+        }
+      },
+      "required": [
+        "frame",
+        "position_m",
+        "orientation_wxyz"
+      ],
+      "title": "Pose",
       "type": "object"
     }
   },
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "moravec.observation/v0.1",
-      "default": "moravec.observation/v0.1",
+      "const": "moravec.observation/v0.2",
+      "default": "moravec.observation/v0.2",
       "title": "Schema Version",
       "type": "string"
     },
     "episode_id": {
-      "minLength": 1,
       "title": "Episode Id",
       "type": "string"
     },
@@ -101,26 +152,26 @@
       "title": "Sequence",
       "type": "integer"
     },
-    "captured_at_ns": {
+    "station_time_s": {
       "minimum": 0,
-      "title": "Captured At Ns",
-      "type": "integer"
+      "title": "Station Time S",
+      "type": "number"
+    },
+    "captured_at_s": {
+      "minimum": 0,
+      "title": "Captured At S",
+      "type": "number"
+    },
+    "profile_id": {
+      "title": "Profile Id",
+      "type": "string"
+    },
+    "profile_revision": {
+      "title": "Profile Revision",
+      "type": "string"
     },
     "instruction": {
-      "minLength": 1,
       "title": "Instruction",
-      "type": "string"
-    },
-    "embodiment": {
-      "const": "arx_x5",
-      "default": "arx_x5",
-      "title": "Embodiment",
-      "type": "string"
-    },
-    "frame_profile": {
-      "const": "robodojo-arx-x5-native/v1",
-      "default": "robodojo-arx-x5-native/v1",
-      "title": "Frame Profile",
       "type": "string"
     },
     "cameras": {
@@ -130,21 +181,53 @@
       "title": "Cameras",
       "type": "object"
     },
-    "left": {
-      "$ref": "#/$defs/ArmState"
+    "joint_positions": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Joint Positions",
+      "type": "object"
     },
-    "right": {
-      "$ref": "#/$defs/ArmState"
+    "tcp_poses": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Pose"
+      },
+      "title": "Tcp Poses",
+      "type": "object"
+    },
+    "gripper_open_fraction": {
+      "additionalProperties": {
+        "maximum": 1,
+        "minimum": 0,
+        "type": "number"
+      },
+      "title": "Gripper Open Fraction",
+      "type": "object"
+    },
+    "feedback": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Feedback"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [
     "episode_id",
     "sequence",
-    "captured_at_ns",
+    "station_time_s",
+    "captured_at_s",
+    "profile_id",
+    "profile_revision",
     "instruction",
     "cameras",
-    "left",
-    "right"
+    "joint_positions",
+    "tcp_poses",
+    "gripper_open_fraction"
   ],
   "title": "Observation",
   "type": "object"

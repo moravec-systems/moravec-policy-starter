@@ -1,0 +1,14 @@
+{
+  "schema_version": "moravec.policy/v0.2",
+  "harness_version": "moravec-0.2.0",
+  "model": {
+    "name": "contract-fixture",
+    "provider_model_id": "contract-fixture"
+  },
+  "family": "fixture",
+  "runtime_profile": "isolated",
+  "backend": {
+    "kind": "contract-fixture",
+    "output": "joint-trajectory"
+  }
+}

@@ -2,234 +2,267 @@ import base64
 import json
 from pathlib import Path
 
-import numpy as np
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from moravec_policy.adapters import MockPolicy, XPolicyAdapter, from_xpolicy, to_xpolicy
-from moravec_policy.astra import plan
-from moravec_policy.cli import read_manifest
-from moravec_policy.contracts import ActionChunk, Observation
-from moravec_policy.provenance import tree_hash
+from moravec_policy.contracts import Decision, Observation, PolicyManifest, RobotProfile
+from moravec_policy.llm import LLMHarness
+from moravec_policy.policies import FixturePolicy
 from moravec_policy.service import create_app
+from moravec_policy.validation import validate_decision, validate_observation
 
 ROOT = Path(__file__).resolve().parents[1]
-TOKEN = "local-contract-test-token-only"
+TOKEN = "test-contract-token-not-a-secret"
 
 
 @pytest.fixture
-def obs():
-    return Observation.model_validate_json((ROOT / "fixtures/observation.json").read_text())
+def profile():
+    return RobotProfile.model_validate_json((ROOT / "sim/profile.json").read_text())
 
 
 @pytest.fixture
-def client():
-    app = create_app(MockPolicy(), read_manifest(ROOT / "examples/mock/policy.json"), TOKEN)
-    return TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"})
+def obs(profile):
+    return Observation(
+        episode_id="test",
+        sequence=0,
+        station_time_s=1,
+        captured_at_s=1,
+        profile_id=profile.id,
+        profile_revision=profile.revision,
+        instruction=json.dumps({"joint_target": {"shoulder": 0.3, "elbow": 0.7}}),
+        cameras={
+            "overview": {
+                "shape": [1, 1, 3],
+                "data": base64.b64encode(bytes([255, 0, 0])).decode(),
+                "captured_at_s": 1,
+            }
+        },
+        joint_positions={"shoulder": 0.0, "elbow": 0.0},
+        tcp_poses={
+            "arm": {
+                "frame": "world",
+                "position_m": [0.55, 0, 0.08],
+                "orientation_wxyz": [1, 0, 0, 0],
+            }
+        },
+        gripper_open_fraction={},
+    )
 
 
-@pytest.mark.parametrize("name", ["astra", "groot", "openwam", "mock"])
-def test_manifests(name):
-    manifest = read_manifest(ROOT / f"examples/{name}/policy.json")
-    assert manifest.validation_status == "contract_only"
+@pytest.fixture
+def client(profile):
+    manifest = PolicyManifest.model_validate_json(
+        (ROOT / "examples/contract-fixture/policy.json").read_text()
+    )
+    app = create_app(FixturePolicy("joint-trajectory"), manifest, TOKEN)
+    return TestClient(app, headers={"Authorization": "Bearer " + TOKEN})
 
 
-def test_rgb_roundtrip_no_channel_swap(obs):
-    decoded = to_xpolicy(obs)
-    np.testing.assert_array_equal(decoded["vision"]["cam_head"]["color"][0, 0], [255, 0, 0])
-    assert decoded["vision"]["cam_head"]["color"].dtype == np.uint8
-    assert decoded["state"]["left_ee_pose"].tolist() == obs.left.ee_pose
-    assert "reward" not in decoded
+@pytest.mark.parametrize("path", list((ROOT / "examples").glob("*/policy.json")))
+def test_examples(path):
+    manifest = PolicyManifest.model_validate_json(path.read_text())
+    assert manifest.model.name == manifest.model.name.lower()
+    assert "_" not in manifest.model.name
 
 
 @pytest.mark.parametrize(
-    "change", ["nan", "missing_camera", "bad_rgb", "bad_quat", "hidden_reward"]
+    "issue", ["stale", "future", "camera-skew", "unknown-joint", "unknown-frame", "profile"]
 )
-def test_invalid_observations_rejected(obs, change):
+def test_observation_rejection(profile, obs, issue):
     data = obs.model_dump()
-    if change == "nan":
-        data["left"]["joints"][0] = float("nan")
-    elif change == "missing_camera":
-        del data["cameras"]["cam_head"]
-    elif change == "bad_rgb":
-        data["cameras"]["cam_head"]["data"] = base64.b64encode(b"short").decode()
-    elif change == "bad_quat":
-        data["left"]["ee_pose"][3:] = [0, 0, 0, 0]
+    if issue == "stale":
+        data["station_time_s"] = 3
+    elif issue == "future":
+        data["captured_at_s"] = 2
+    elif issue == "camera-skew":
+        data["cameras"]["overview"]["captured_at_s"] = 0.5
+    elif issue == "unknown-joint":
+        data["joint_positions"]["wrong"] = 0
+    elif issue == "unknown-frame":
+        data["tcp_poses"]["arm"]["frame"] = "unknown"
+    else:
+        data["profile_revision"] = "wrong"
+    with pytest.raises(ValueError):
+        validate_observation(Observation.model_validate(data), profile)
+
+
+@pytest.mark.parametrize("issue", ["nan", "image", "hidden-reward", "quat"])
+def test_payload_rejection(obs, issue):
+    data = obs.model_dump()
+    if issue == "nan":
+        data["joint_positions"]["elbow"] = float("nan")
+    elif issue == "image":
+        data["cameras"]["overview"]["data"] = "AAAAAA=="
+    elif issue == "quat":
+        data["tcp_poses"]["arm"]["orientation_wxyz"] = [0, 0, 0, 0]
     else:
         data["reward"] = 1
     with pytest.raises(ValidationError):
         Observation.model_validate(data)
 
 
-def native_step(obs, action="joint"):
-    key = "arm_joint_state" if action == "joint" else "ee_pose"
-    return {
-        f"{side}_{field}": np.array(values)
-        for side in ("left", "right")
-        for field, values in [
-            (key, getattr(obs, side).joints if action == "joint" else getattr(obs, side).ee_pose),
-            ("ee_joint_state", [1.0]),
-        ]
-    }
-
-
-@pytest.mark.parametrize("action", ["joint", "ee"])
-def test_native_action_roundtrip(obs, action):
-    result = from_xpolicy([native_step(obs, action)], obs, action, 0.05)
-    assert result.action_type == action
-    assert result.episode_id == obs.episode_id
-    assert result.steps[0].left_gripper == 1
-
-
-@pytest.mark.parametrize("failure", ["nan", "bad_gripper", "empty", "extra_key"])
-def test_bad_actions_fail_closed(obs, failure):
-    raw = [native_step(obs)]
-    if failure == "nan":
-        raw[0]["left_arm_joint_state"][0] = np.nan
-    elif failure == "bad_gripper":
-        raw[0]["left_ee_joint_state"][0] = 2
-    elif failure == "empty":
-        raw = []
+@pytest.mark.parametrize("issue", ["expired", "wrong-episode", "limit", "wrong-joint", "duration"])
+def test_executor_rejects_without_actuation(profile, obs, issue):
+    decision = FixturePolicy("joint-trajectory").predict(obs, profile).model_dump()
+    now = obs.station_time_s
+    if issue == "expired":
+        now = 3
+    elif issue == "wrong-episode":
+        decision["episode_id"] = "other"
+    elif issue == "limit":
+        decision["action"]["points"][0]["positions"]["elbow"] = 20
+    elif issue == "wrong-joint":
+        decision["action"]["points"][0]["positions"] = {"wrong": 0}
     else:
-        raw[0]["unexpected"] = 1
+        decision["action"]["points"][0]["time_from_start_s"] = 20
     with pytest.raises(ValueError):
-        from_xpolicy(raw, obs, "joint", 0.05)
+        validate_decision(Decision.model_validate(decision), obs, profile, now)
 
 
-def test_service_episode_lifecycle_and_stale_rejection(client, obs):
-    body = {"episode_id": obs.episode_id}
-    assert client.post("/v1/predict", json={"observation": obs.model_dump()}).status_code == 409
-    assert client.post("/v1/episode/start", json=body).status_code == 200
-    assert client.post("/v1/episode/start", json={"episode_id": "other"}).status_code == 409
-    response = client.post("/v1/predict", json={"observation": obs.model_dump()})
-    assert response.status_code == 200
-    assert ActionChunk.model_validate(response.json()).evidence_kind == "mock"
-    assert client.post("/v1/predict", json={"observation": obs.model_dump()}).status_code == 409
-    assert client.post("/v1/episode/end", json=body).status_code == 200
-    assert client.post("/v1/episode/start", json=body).status_code == 200
-    assert client.post("/v1/predict", json={"observation": obs.model_dump()}).status_code == 200
+def test_lifecycle_feedback_and_reset(client, obs, profile):
+    start = {"episode_id": obs.episode_id, "profile": profile.model_dump()}
+    assert client.post("/v1/episode/start", json=start).status_code == 200
+    assert client.post("/v1/episode/start", json=start).status_code == 409
+    result = client.post("/v1/policy/step", json=obs.model_dump())
+    assert result.status_code == 200
+    assert result.json()["evidence_kind"] == "contract-fixture"
+    assert client.post("/v1/policy/step", json=obs.model_dump()).status_code == 409
+    data = obs.model_dump()
+    data["sequence"] = 1
+    assert client.post("/v1/policy/step", json=data).status_code == 409
+    data["feedback"] = {
+        "decision_id": result.json()["decision_id"],
+        "status": "executed",
+        "reason": "measured",
+        "executed_steps": 50,
+    }
+    assert client.post("/v1/policy/step", json=data).status_code == 200
+    assert client.post("/v1/episode/end", json={"episode_id": "test"}).status_code == 200
+    assert client.post("/v1/episode/start", json=start).status_code == 200
+    assert client.post("/v1/policy/step", json=obs.model_dump()).status_code == 200
 
 
-def test_auth_required(client):
+def test_auth(client):
     assert client.get("/health").status_code == 200
     assert client.get("/v1/capabilities", headers={"Authorization": ""}).status_code == 401
-    assert (
-        client.post(
-            "/v1/episode/start", json={"episode_id": "a"}, headers={"Authorization": "Bearer wrong"}
-        ).status_code
-        == 401
+
+
+def llm_config():
+    return PolicyManifest.model_validate_json(
+        (ROOT / "examples/gpt-6-astra/policy.json").read_text()
     )
 
 
-def test_real_adapter_uses_upstream_methods_and_reset(obs):
-    class Upstream:
-        def __init__(self):
-            self.history = []
+def test_llm_http_schema_and_feedback(profile, obs):
+    requests = []
 
-        def reset(self):
-            self.history.clear()
+    def respond(request):
+        body = json.loads(request.content)
+        requests.append(body)
+        assert body["model"] == "gpt-6-astra"
+        assert body["messages"][-1]["content"][1]["text"] == "Camera: overview"
+        args = {
+            "kind": "cartesian-goal",
+            "arm": "arm",
+            "duration_s": 1,
+            "target": {
+                "frame": "world",
+                "position_m": [0.4, 0.2, 0.08],
+                "orientation_wxyz": [1, 0, 0, 0],
+            },
+        }
+        return httpx.Response(
+            200,
+            json={
+                "model": "gpt-6-astra",
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": f"call-{len(requests)}",
+                                    "type": "function",
+                                    "function": {"name": "move_tcp", "arguments": json.dumps(args)},
+                                }
+                            ],
+                        }
+                    }
+                ],
+            },
+        )
 
-        def update_obs(self, value):
-            self.history.append(value)
+    with httpx.Client(transport=httpx.MockTransport(respond)) as http:
+        policy = LLMHarness(llm_config(), client=http, token=TOKEN)
+        first = policy.predict(obs, profile)
+        assert first.action.kind == "cartesian-goal"
+        next_obs = obs.model_copy(update={"sequence": 1})
+        with pytest.raises(ValueError, match="feedback"):
+            policy.predict(next_obs, profile)
+        from moravec_policy.contracts import Feedback
 
-        def get_action(self):
-            return [native_step(obs)]
-
-    model = Upstream()
-    adapter = XPolicyAdapter(model, "joint", 0.05)
-    assert adapter.predict(obs).evidence_kind == "model_inference"
-    assert len(model.history) == 1
-    adapter.reset()
-    assert model.history == []
-
-
-def test_fault_poisoning_no_secret_echo(obs):
-    class Fault(MockPolicy):
-        def predict(self, observation):
-            raise RuntimeError("SECRET-CREDENTIAL")
-
-    app = create_app(Fault(), read_manifest(ROOT / "examples/mock/policy.json"), TOKEN)
-    client = TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"})
-    client.post("/v1/episode/start", json={"episode_id": obs.episode_id})
-    result = client.post("/v1/predict", json={"observation": obs.model_dump()})
-    assert result.status_code == 502
-    assert "SECRET" not in result.text
-    next_obs = obs.model_copy(update={"sequence": 1})
-    assert (
-        client.post("/v1/predict", json={"observation": next_obs.model_dump()}).status_code == 409
-    )
-
-
-def test_astra_keeps_reference_entrypoint(tmp_path):
-    manifest = read_manifest(ROOT / "examples/astra/policy.json")
-    invocation = plan(manifest, tmp_path, "stack_bowls", 0, "uv", 0)
-    assert "RoboDojo_Agent_L3_Inspect_EEF/run_fixed_layout.sh" in invocation["argv"][1]
-    assert invocation["environment"]["L3_INSPECT_MODEL"] == "gpt-6-astra"
-    assert invocation["argv"][2:4] == ["0", "0"]
-    assert "ASTRA_API_KEY" in invocation["required_environment"]
-
-
-def test_checkpoint_hash_includes_normalization(tmp_path):
-    (tmp_path / "weights").write_bytes(b"weights")
-    original = tree_hash(tmp_path)
-    (tmp_path / "normalization.json").write_text("{}")
-    assert tree_hash(tmp_path) != original
-
-
-def test_gr00t_cannot_silently_use_wrong_action_space():
-    data = json.loads((ROOT / "examples/groot/policy.json").read_text())
-    data["action_type"] = "ee"
-    from moravec_policy.contracts import PolicyManifest
-
-    with pytest.raises(ValidationError):
-        PolicyManifest.model_validate(data)
+        next_obs.feedback = Feedback(
+            decision_id=first.decision_id, status="rejected", reason="unreachable", executed_steps=0
+        )
+        policy.predict(next_obs, profile)
+        assert any(
+            m["role"] == "tool" and "unreachable" in m["content"] for m in requests[-1]["messages"]
+        )
+        policy.reset()
+        assert len(policy.history) == 1 and policy.calls == 0
 
 
-def test_remote_rejects_cleartext_external_and_credentials():
-    from moravec_policy.client import RemotePolicy
+@pytest.mark.parametrize("failure", ["model", "tool", "multiple", "json", "http"])
+def test_llm_errors_never_become_motion(profile, obs, failure):
+    def respond(request):
+        call = {
+            "id": "c",
+            "type": "function",
+            "function": {"name": "stop", "arguments": '{"kind":"stop","reason":"test"}'},
+        }
+        payload = {"model": "gpt-6-astra", "choices": [{"message": {"tool_calls": [call]}}]}
+        if failure == "model":
+            payload["model"] = "other-model"
+        elif failure == "tool":
+            call["function"]["name"] = "execute_shell"
+        elif failure == "multiple":
+            payload["choices"][0]["message"]["tool_calls"] = [call, call]
+        elif failure == "json":
+            call["function"]["arguments"] = "not json"
+        elif failure == "http":
+            return httpx.Response(402, json={"error": "funding"})
+        return httpx.Response(200, json=payload)
 
-    for url in ["http://example.com", "https://user:pass@example.com", "https://example.com?key=x"]:
-        with pytest.raises(ValueError):
-            RemotePolicy(url, TOKEN)
+    with (
+        httpx.Client(transport=httpx.MockTransport(respond)) as http,
+        pytest.raises((ValueError, httpx.HTTPStatusError)),
+    ):
+        LLMHarness(llm_config(), client=http, token=TOKEN).predict(obs, profile)
 
 
-@pytest.mark.parametrize("name", ["groot", "openwam"])
-def test_real_models_never_fall_back_when_weights_missing(name):
-    from moravec_policy.adapters import load_policy
-
-    path = ROOT / f"examples/{name}/policy.json"
-    with pytest.raises(ValueError, match="configure a compatible checkpoint"):
-        load_policy(read_manifest(path), path, 0.05)
+def test_isolated_blocks_public_llm():
+    cfg = llm_config().model_copy(update={"runtime_profile": "isolated"})
+    with pytest.raises(ValueError, match="isolated"):
+        LLMHarness(cfg, token=TOKEN)
 
 
-def test_checkpoint_source_drift_rejected(tmp_path):
-    import subprocess
+@pytest.mark.parametrize("name", ["gr00t-n1.7-3b", "openwam-alpha-pretrain-foundation-model"])
+def test_native_checkpoints_fail_closed(name):
+    from moravec_policy.policies import load_policy
 
-    from moravec_policy.adapters import verify_checkout
+    path = ROOT / "examples" / name / "policy.json"
+    with pytest.raises(ValueError, match="qualification"):
+        load_policy(PolicyManifest.model_validate_json(path.read_text()), path)
 
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    (tmp_path / "adapter.py").write_text("original")
-    subprocess.run(["git", "-C", str(tmp_path), "add", "adapter.py"], check=True)
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(tmp_path),
-            "-c",
-            "user.name=Fixture",
-            "-c",
-            "user.email=fixture@example.invalid",
-            "commit",
-            "-qm",
-            "fixture",
-        ],
-        check=True,
-    )
-    sha = subprocess.check_output(
-        ["git", "-C", str(tmp_path), "rev-parse", "HEAD"], text=True
-    ).strip()
-    verify_checkout(tmp_path, sha)
-    (tmp_path / "adapter.py").write_text("modified")
-    with pytest.raises(ValueError, match="tracked changes"):
-        verify_checkout(tmp_path, sha)
+
+def test_binary_uncertainty():
+    from moravec_policy.statistics import wilson_interval
+
+    lo, hi = wilson_interval(10, 10)
+    assert lo == pytest.approx(0.7224672)
+    assert hi == pytest.approx(1.0)
+    with pytest.raises(ValueError):
+        wilson_interval(1, 0)

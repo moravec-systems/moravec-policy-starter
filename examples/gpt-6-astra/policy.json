@@ -1,0 +1,20 @@
+{
+  "schema_version": "moravec.policy/v0.2",
+  "harness_version": "moravec-0.2.0",
+  "model": {
+    "name": "gpt-6-astra",
+    "provider_model_id": "gpt-6-astra"
+  },
+  "family": "llm",
+  "runtime_profile": "api-connected",
+  "backend": {
+    "kind": "http-llm",
+    "url": "https://model-gateway.example.invalid/v1/chat/completions",
+    "api": "chat-completions",
+    "token_env": "ASTRA_API_KEY",
+    "timeout_s": 60,
+    "max_calls": 50,
+    "max_output_tokens": 4096,
+    "reasoning_effort": "medium"
+  }
+}

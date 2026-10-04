@@ -1,38 +1,101 @@
 {
   "$defs": {
-    "AstraBackend": {
+    "FixtureBackend": {
       "additionalProperties": false,
       "properties": {
         "kind": {
-          "const": "roboprobe",
+          "const": "contract-fixture",
           "title": "Kind",
           "type": "string"
         },
-        "source": {
-          "$ref": "#/$defs/Source"
-        },
-        "harness": {
-          "const": "RoboDojo_Agent_L3_Inspect_EEF",
-          "title": "Harness",
+        "output": {
+          "enum": [
+            "joint-trajectory",
+            "cartesian-goal"
+          ],
+          "title": "Output",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "output"
+      ],
+      "title": "FixtureBackend",
+      "type": "object"
+    },
+    "LocalModel": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "local-model",
+          "title": "Kind",
           "type": "string"
         },
-        "planner": {
-          "const": "astra",
-          "title": "Planner",
+        "driver": {
+          "enum": [
+            "gr00t",
+            "openwam"
+          ],
+          "title": "Driver",
           "type": "string"
         },
-        "model": {
-          "const": "gpt-6-astra",
-          "title": "Model",
+        "checkpoint_path": {
+          "title": "Checkpoint Path",
           "type": "string"
         },
-        "base_url_env": {
-          "title": "Base Url Env",
+        "binding_config": {
+          "title": "Binding Config",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "driver",
+        "checkpoint_path",
+        "binding_config"
+      ],
+      "title": "LocalModel",
+      "type": "object"
+    },
+    "ModelEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "http-llm",
+          "title": "Kind",
           "type": "string"
         },
-        "api_key_env": {
-          "title": "Api Key Env",
+        "url": {
+          "title": "Url",
           "type": "string"
+        },
+        "api": {
+          "const": "chat-completions",
+          "title": "Api",
+          "type": "string"
+        },
+        "token_env": {
+          "title": "Token Env",
+          "type": "string"
+        },
+        "timeout_s": {
+          "exclusiveMinimum": 0,
+          "maximum": 120,
+          "title": "Timeout S",
+          "type": "number"
+        },
+        "max_calls": {
+          "exclusiveMinimum": 0,
+          "maximum": 200,
+          "title": "Max Calls",
+          "type": "integer"
+        },
+        "max_output_tokens": {
+          "exclusiveMinimum": 0,
+          "maximum": 32768,
+          "title": "Max Output Tokens",
+          "type": "integer"
         },
         "reasoning_effort": {
           "enum": [
@@ -42,43 +105,58 @@
           ],
           "title": "Reasoning Effort",
           "type": "string"
-        },
-        "max_model_calls": {
-          "exclusiveMinimum": 0,
-          "maximum": 170,
-          "title": "Max Model Calls",
-          "type": "integer"
-        },
-        "image_history": {
-          "exclusiveMinimum": 0,
-          "maximum": 16,
-          "title": "Image History",
-          "type": "integer"
         }
       },
       "required": [
         "kind",
-        "source",
-        "harness",
-        "planner",
-        "model",
-        "base_url_env",
-        "api_key_env",
-        "reasoning_effort",
-        "max_model_calls",
-        "image_history"
+        "url",
+        "api",
+        "token_env",
+        "timeout_s",
+        "max_calls",
+        "max_output_tokens",
+        "reasoning_effort"
       ],
-      "title": "AstraBackend",
+      "title": "ModelEndpoint",
       "type": "object"
     },
-    "Checkpoint": {
+    "ModelIdentity": {
       "additionalProperties": false,
       "properties": {
-        "path": {
-          "title": "Path",
+        "name": {
+          "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$",
+          "title": "Name",
           "type": "string"
         },
-        "sha256": {
+        "provider_model_id": {
+          "title": "Provider Model Id",
+          "type": "string"
+        },
+        "artifact_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Artifact Uri"
+        },
+        "artifact_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Artifact Revision"
+        },
+        "checkpoint_sha256": {
           "anyOf": [
             {
               "pattern": "^[0-9a-f]{64}$",
@@ -89,172 +167,67 @@
             }
           ],
           "default": null,
-          "title": "Sha256"
-        },
-        "status": {
-          "default": "required",
-          "enum": [
-            "required",
-            "configured"
-          ],
-          "title": "Status",
-          "type": "string"
+          "title": "Checkpoint Sha256"
         }
       },
       "required": [
-        "path"
+        "name",
+        "provider_model_id"
       ],
-      "title": "Checkpoint",
-      "type": "object"
-    },
-    "MockBackend": {
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "const": "mock",
-          "title": "Kind",
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind"
-      ],
-      "title": "MockBackend",
-      "type": "object"
-    },
-    "Source": {
-      "additionalProperties": false,
-      "properties": {
-        "repository": {
-          "title": "Repository",
-          "type": "string"
-        },
-        "revision": {
-          "pattern": "^[0-9a-f]{40}$",
-          "title": "Revision",
-          "type": "string"
-        }
-      },
-      "required": [
-        "repository",
-        "revision"
-      ],
-      "title": "Source",
-      "type": "object"
-    },
-    "XPolicyBackend": {
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "const": "xpolicy",
-          "title": "Kind",
-          "type": "string"
-        },
-        "policy_name": {
-          "enum": [
-            "GR00T_N17",
-            "OpenWAM"
-          ],
-          "title": "Policy Name",
-          "type": "string"
-        },
-        "source": {
-          "$ref": "#/$defs/Source"
-        },
-        "config_path": {
-          "title": "Config Path",
-          "type": "string"
-        },
-        "checkpoint": {
-          "$ref": "#/$defs/Checkpoint"
-        }
-      },
-      "required": [
-        "kind",
-        "policy_name",
-        "source",
-        "config_path",
-        "checkpoint"
-      ],
-      "title": "XPolicyBackend",
+      "title": "ModelIdentity",
       "type": "object"
     }
   },
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "moravec.policy/v0.1",
+      "const": "moravec.policy/v0.2",
       "title": "Schema Version",
       "type": "string"
     },
-    "id": {
-      "title": "Id",
-      "type": "string"
+    "model": {
+      "$ref": "#/$defs/ModelIdentity"
     },
     "family": {
       "enum": [
         "llm",
         "vla",
-        "world_action",
-        "test_fixture"
+        "world-action",
+        "fixture"
       ],
       "title": "Family",
       "type": "string"
     },
-    "embodiment": {
-      "const": "arx_x5",
-      "title": "Embodiment",
+    "harness_version": {
+      "title": "Harness Version",
       "type": "string"
     },
-    "action_type": {
+    "runtime_profile": {
       "enum": [
-        "joint",
-        "ee"
+        "isolated",
+        "api-connected"
       ],
-      "title": "Action Type",
-      "type": "string"
-    },
-    "observation_profile": {
-      "const": "rgb-proprioception/v1",
-      "title": "Observation Profile",
-      "type": "string"
-    },
-    "execution": {
-      "enum": [
-        "policy_service",
-        "native_harness",
-        "fixture"
-      ],
-      "title": "Execution",
-      "type": "string"
-    },
-    "validation_status": {
-      "default": "contract_only",
-      "enum": [
-        "contract_only",
-        "live_validated"
-      ],
-      "title": "Validation Status",
+      "title": "Runtime Profile",
       "type": "string"
     },
     "backend": {
       "discriminator": {
         "mapping": {
-          "mock": "#/$defs/MockBackend",
-          "roboprobe": "#/$defs/AstraBackend",
-          "xpolicy": "#/$defs/XPolicyBackend"
+          "contract-fixture": "#/$defs/FixtureBackend",
+          "http-llm": "#/$defs/ModelEndpoint",
+          "local-model": "#/$defs/LocalModel"
         },
         "propertyName": "kind"
       },
       "oneOf": [
         {
-          "$ref": "#/$defs/XPolicyBackend"
+          "$ref": "#/$defs/ModelEndpoint"
         },
         {
-          "$ref": "#/$defs/AstraBackend"
+          "$ref": "#/$defs/LocalModel"
         },
         {
-          "$ref": "#/$defs/MockBackend"
+          "$ref": "#/$defs/FixtureBackend"
         }
       ],
       "title": "Backend"
@@ -262,12 +235,10 @@
   },
   "required": [
     "schema_version",
-    "id",
+    "model",
     "family",
-    "embodiment",
-    "action_type",
-    "observation_profile",
-    "execution",
+    "harness_version",
+    "runtime_profile",
     "backend"
   ],
   "title": "PolicyManifest",

@@ -1,43 +1,40 @@
-"""Minimal remote policy client; no automatic retries of stateful requests."""
-
 from urllib.parse import urlparse
 
 import httpx
 
-from .contracts import ActionChunk, Observation
+from .contracts import Decision
 
 
 class RemotePolicy:
-    def __init__(self, url: str, token: str, timeout_s: float = 60):
+    def __init__(self, url, token, timeout_s=60):
         parts = urlparse(url)
         if parts.username or parts.password or parts.query or parts.fragment:
-            raise ValueError("endpoint URL must not contain credentials, queries, or fragments")
+            raise ValueError("credentials/query/fragment prohibited in endpoint URL")
         if parts.scheme != "https" and not (
             parts.scheme == "http" and parts.hostname in {"localhost", "127.0.0.1", "::1"}
         ):
-            raise ValueError("remote policy requires HTTPS (HTTP permitted only on loopback)")
+            raise ValueError("non-loopback endpoints require HTTPS")
         self.http = httpx.Client(
             base_url=url,
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": "Bearer " + token},
             timeout=timeout_s,
             follow_redirects=False,
         )
 
-    def start(self, episode_id: str):
-        self.http.post("/v1/episode/start", json={"episode_id": episode_id}).raise_for_status()
+    def start(self, episode_id, profile):
+        self.http.post(
+            "/v1/episode/start", json={"episode_id": episode_id, "profile": profile.model_dump()}
+        ).raise_for_status()
 
-    def predict(self, observation: Observation) -> ActionChunk:
-        response = self.http.post("/v1/predict", json={"observation": observation.model_dump()})
+    def predict(self, obs):
+        response = self.http.post("/v1/policy/step", json=obs.model_dump())
         response.raise_for_status()
-        result = ActionChunk.model_validate(response.json())
-        if (result.episode_id, result.observation_sequence) != (
-            observation.episode_id,
-            observation.sequence,
-        ):
-            raise ValueError("remote response belongs to a different observation")
-        return result
+        decision = Decision.model_validate(response.json())
+        if (decision.episode_id, decision.observation_sequence) != (obs.episode_id, obs.sequence):
+            raise ValueError("mismatched remote response")
+        return decision
 
-    def end(self, episode_id: str):
+    def end(self, episode_id):
         self.http.post("/v1/episode/end", json={"episode_id": episode_id}).raise_for_status()
 
     def close(self):

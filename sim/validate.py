@@ -1,0 +1,310 @@
+"""Physical conformance test: HTTP → Moravec policy → station executor → MuJoCo.
+
+Uses explicit test doubles, never real Astra/GR00T/OpenWAM. No provider API calls.
+"""
+
+import argparse
+import base64
+import contextlib
+import hashlib
+import json
+import math
+import socket
+import threading
+import time
+from pathlib import Path
+
+import imageio.v2 as imageio
+import mujoco
+import numpy as np
+import uvicorn
+from fastapi import FastAPI, Request
+
+from moravec_policy.client import RemotePolicy
+from moravec_policy.contracts import (
+    CartesianGoal,
+    Feedback,
+    Observation,
+    PolicyManifest,
+    RobotProfile,
+)
+from moravec_policy.llm import LLMHarness
+from moravec_policy.policies import FixturePolicy
+from moravec_policy.service import create_app
+from moravec_policy.validation import validate_decision
+
+ROOT = Path(__file__).resolve().parents[1]
+TOKEN = "simulation-conformance-token-only"
+
+
+@contextlib.contextmanager
+def serve(app):
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    server = uvicorn.Server(uvicorn.Config(app, log_level="error"))
+    thread = threading.Thread(target=server.run, kwargs={"sockets": [sock]}, daemon=True)
+    thread.start()
+    for _ in range(200):
+        if server.started:
+            break
+        if not thread.is_alive():
+            raise RuntimeError("test server failed to start")
+        time.sleep(0.01)
+    else:
+        raise RuntimeError("test server startup timeout")
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+        sock.close()
+        if thread.is_alive():
+            raise RuntimeError("test server did not stop")
+
+
+def model_fixture():
+    app = FastAPI()
+
+    @app.post("/v1/chat/completions")
+    async def completion(request: Request):
+        payload = await request.json()
+        if request.headers.get("authorization") != "Bearer " + TOKEN:
+            raise RuntimeError("bad fixture token")
+        last = payload["messages"][-1]["content"]
+        assert any(x["type"] == "image_url" for x in last)
+        obs = json.loads(last[0]["text"])
+        target = json.loads(obs["instruction"])
+        args = {
+            "kind": "cartesian-goal",
+            "arm": "arm",
+            "duration_s": 1.0,
+            "target": {
+                "frame": "world",
+                "position_m": target["tcp_target_m"],
+                "orientation_wxyz": target["orientation_wxyz"],
+            },
+        }
+        return {
+            "model": "contract-fixture-llm",
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": f"call-{obs['sequence']}",
+                                "type": "function",
+                                "function": {"name": "move_tcp", "arguments": json.dumps(args)},
+                            }
+                        ],
+                    }
+                }
+            ],
+        }
+
+    return app
+
+
+def tcp_target(q):
+    a, b = q
+    return [
+        0.3 * math.cos(a) + 0.25 * math.cos(a + b),
+        0.3 * math.sin(a) + 0.25 * math.sin(a + b),
+        0.08,
+    ]
+
+
+def solve_goal(action):
+    x, y, z = action.target.position_m
+    if action.target.frame != "world" or abs(z - 0.08) > 1e-5 or action.arm != "arm":
+        raise ValueError("goal incompatible with planar fixture")
+    c = (x * x + y * y - 0.3**2 - 0.25**2) / (2 * 0.3 * 0.25)
+    if not -1 <= c <= 1:
+        raise ValueError("unreachable goal")
+    b = math.acos(c)
+    a = math.atan2(y, x) - math.atan2(0.25 * math.sin(b), 0.3 + 0.25 * math.cos(b))
+    expected = np.array([math.cos((a + b) / 2), 0, 0, math.sin((a + b) / 2)])
+    if (
+        min(
+            np.linalg.norm(expected - np.array(action.target.orientation_wxyz)),
+            np.linalg.norm(expected + np.array(action.target.orientation_wxyz)),
+        )
+        > 1e-4
+    ):
+        raise ValueError("orientation unreachable on planar fixture")
+    return np.array([a, b])
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", type=Path, default=ROOT / "runs/conformance")
+    args = parser.parse_args()
+    args.output.mkdir(parents=True, exist_ok=True)
+    profile = RobotProfile.model_validate_json((ROOT / "sim/profile.json").read_text())
+    base = json.loads((ROOT / "examples/contract-fixture/policy.json").read_text())
+    results = []
+    events = []
+    frames = []
+    model = mujoco.MjModel.from_xml_path(str(ROOT / "sim/reach.xml"))
+    data = mujoco.MjData(model)
+    renderer = mujoco.Renderer(model, height=240, width=320)
+    try:
+        with serve(model_fixture()) as model_url:
+            for mode in ["joint-trajectory", "llm-http-tool-loop"]:
+                if mode == "joint-trajectory":
+                    manifest = PolicyManifest.model_validate(base)
+                    policy = FixturePolicy("joint-trajectory")
+                else:
+                    cfg = json.loads((ROOT / "examples/gpt-6-astra/policy.json").read_text())
+                    cfg["model"] = {
+                        "name": "contract-fixture-llm",
+                        "provider_model_id": "contract-fixture-llm",
+                    }
+                    cfg["backend"]["url"] = model_url + "/v1/chat/completions"
+                    manifest = PolicyManifest.model_validate(cfg)
+                    policy = LLMHarness(manifest, token=TOKEN)
+                with serve(create_app(policy, manifest, TOKEN)) as url:
+                    client = RemotePolicy(url, TOKEN)
+                    try:
+                        for seed in range(5):
+                            rng = np.random.default_rng(seed)
+                            q_target = np.array([rng.uniform(0.1, 0.5), rng.uniform(0.4, 0.9)])
+                            target = tcp_target(q_target)
+                            quat = [math.cos(sum(q_target) / 2), 0, 0, math.sin(sum(q_target) / 2)]
+                            instruction = json.dumps(
+                                {
+                                    "joint_target": dict(
+                                        zip(["shoulder", "elbow"], q_target.tolist())
+                                    ),
+                                    "tcp_target_m": target,
+                                    "orientation_wxyz": quat,
+                                }
+                            )
+                            mujoco.mj_resetData(model, data)
+                            mujoco.mj_forward(model, data)
+                            episode = f"{mode}-{seed}"
+                            client.start(episode, profile)
+                            feedback = None
+                            for seq in range(2):
+                                renderer.update_scene(data, camera="overview")
+                                rgb = renderer.render().copy()
+                                yaw = float(sum(data.qpos[:2]))
+                                now = float(data.time)
+                                obs = Observation(
+                                    episode_id=episode,
+                                    sequence=seq,
+                                    station_time_s=now,
+                                    captured_at_s=now,
+                                    profile_id=profile.id,
+                                    profile_revision=profile.revision,
+                                    instruction=instruction,
+                                    cameras={
+                                        "overview": {
+                                            "shape": list(rgb.shape),
+                                            "data": base64.b64encode(rgb.tobytes()).decode(),
+                                            "captured_at_s": now,
+                                        }
+                                    },
+                                    joint_positions=dict(
+                                        zip(["shoulder", "elbow"], data.qpos[:2].tolist())
+                                    ),
+                                    tcp_poses={
+                                        "arm": {
+                                            "frame": "world",
+                                            "position_m": data.site("tcp").xpos.tolist(),
+                                            "orientation_wxyz": [
+                                                math.cos(yaw / 2),
+                                                0,
+                                                0,
+                                                math.sin(yaw / 2),
+                                            ],
+                                        }
+                                    },
+                                    gripper_open_fraction={},
+                                    feedback=feedback,
+                                )
+                                decision = client.predict(obs)
+                                validate_decision(decision, obs, profile, float(data.time))
+                                if isinstance(decision.action, CartesianGoal):
+                                    command = solve_goal(decision.action)
+                                else:
+                                    command = np.array(
+                                        [
+                                            decision.action.points[-1].positions[n]
+                                            for n in ["shoulder", "elbow"]
+                                        ]
+                                    )
+                                # Also validate IK output against joint limits, not only the requested goal.
+                                if any(
+                                    not j.lower <= v <= j.upper
+                                    for j, v in zip(profile.joints, command)
+                                ):
+                                    raise ValueError("planner exceeded joint limits")
+                                initial = data.qpos[:2].copy()
+                                for step in range(750):
+                                    alpha = min(1.0, step * model.opt.timestep)
+                                    data.ctrl[:] = initial + (command - initial) * alpha
+                                    mujoco.mj_step(model, data)
+                                    if any(w.number for w in data.warning):
+                                        raise RuntimeError("physics warning invalidates episode")
+                                    if seed == 0 and step % 25 == 0:
+                                        renderer.update_scene(data, camera="overview")
+                                        frames.append(renderer.render().copy())
+                                feedback = Feedback(
+                                    decision_id=decision.decision_id,
+                                    status="executed",
+                                    reason="measured trajectory completed",
+                                    executed_steps=750,
+                                )
+                                events.append(
+                                    {
+                                        "episode_id": episode,
+                                        "sequence": seq,
+                                        "decision": decision.model_dump(),
+                                        "feedback": feedback.model_dump(),
+                                        "measured_tcp_m": data.site("tcp").xpos.tolist(),
+                                    }
+                                )
+                            error = float(np.linalg.norm(data.site("tcp").xpos - np.array(target)))
+                            results.append(
+                                {
+                                    "mode": mode,
+                                    "seed": seed,
+                                    "position_error_m": error,
+                                    "passed": error < 0.01,
+                                }
+                            )
+                            client.end(episode)
+                    finally:
+                        client.close()
+                if isinstance(policy, LLMHarness):
+                    policy.client.close()
+    finally:
+        renderer.close()
+    imageio.mimsave(args.output / "conformance.mp4", frames, fps=20, macro_block_size=1)
+    (args.output / "events.json").write_text(json.dumps(events, indent=2) + "\n")
+    report = {
+        "simulator": "mujoco",
+        "simulator_version": mujoco.__version__,
+        "model_execution": False,
+        "test_double": "explicit deterministic HTTP/tool and direct-action fixtures",
+        "episodes": len(results),
+        "passed": sum(r["passed"] for r in results),
+        "results": results,
+        "limitations": [
+            "Not Isaac Sim validation",
+            "Not Astra/GR00T/OpenWAM inference",
+            "Not robot task benchmark results",
+        ],
+        "scene_sha256": hashlib.sha256((ROOT / "sim/reach.xml").read_bytes()).hexdigest(),
+    }
+    (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
+    print(json.dumps(report, indent=2))
+    if report["passed"] != report["episodes"]:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

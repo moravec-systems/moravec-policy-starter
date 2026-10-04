@@ -1,0 +1,817 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Moravec policy API",
+    "version": "0.2.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/capabilities": {
+      "get": {
+        "summary": "Capabilities",
+        "operationId": "capabilities_v1_capabilities_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/episode/start": {
+      "post": {
+        "summary": "Start",
+        "operationId": "start_v1_episode_start_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/policy/step": {
+      "post": {
+        "summary": "Step",
+        "operationId": "step_v1_policy_step_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Observation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Decision"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/episode/end": {
+      "post": {
+        "summary": "End",
+        "operationId": "end_v1_episode_end_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeEnd"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Camera": {
+        "properties": {
+          "encoding": {
+            "type": "string",
+            "const": "rgb8-base64",
+            "title": "Encoding",
+            "default": "rgb8-base64"
+          },
+          "shape": {
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer",
+                "const": 3
+              }
+            ],
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Shape"
+          },
+          "data": {
+            "type": "string",
+            "maxLength": 16777216,
+            "title": "Data"
+          },
+          "captured_at_s": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Captured At S"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "shape",
+          "data",
+          "captured_at_s"
+        ],
+        "title": "Camera"
+      },
+      "CartesianGoal": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "cartesian-goal",
+            "title": "Kind"
+          },
+          "arm": {
+            "type": "string",
+            "title": "Arm"
+          },
+          "target": {
+            "$ref": "#/components/schemas/Pose"
+          },
+          "duration_s": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Duration S"
+          },
+          "gripper_open_fraction": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gripper Open Fraction"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "arm",
+          "target",
+          "duration_s"
+        ],
+        "title": "CartesianGoal"
+      },
+      "Decision": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "moravec.decision/v0.2",
+            "title": "Schema Version",
+            "default": "moravec.decision/v0.2"
+          },
+          "episode_id": {
+            "type": "string",
+            "title": "Episode Id"
+          },
+          "observation_sequence": {
+            "type": "integer",
+            "title": "Observation Sequence"
+          },
+          "decision_id": {
+            "type": "string",
+            "title": "Decision Id"
+          },
+          "valid_until_station_time_s": {
+            "type": "number",
+            "title": "Valid Until Station Time S"
+          },
+          "evidence_kind": {
+            "type": "string",
+            "enum": [
+              "model-inference",
+              "contract-fixture"
+            ],
+            "title": "Evidence Kind"
+          },
+          "action": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/JointTrajectory"
+              },
+              {
+                "$ref": "#/components/schemas/CartesianGoal"
+              },
+              {
+                "$ref": "#/components/schemas/Stop"
+              }
+            ],
+            "title": "Action",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "cartesian-goal": "#/components/schemas/CartesianGoal",
+                "joint-trajectory": "#/components/schemas/JointTrajectory",
+                "stop": "#/components/schemas/Stop"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "episode_id",
+          "observation_sequence",
+          "decision_id",
+          "valid_until_station_time_s",
+          "evidence_kind",
+          "action"
+        ],
+        "title": "Decision"
+      },
+      "EpisodeEnd": {
+        "properties": {
+          "episode_id": {
+            "type": "string",
+            "title": "Episode Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "episode_id"
+        ],
+        "title": "EpisodeEnd"
+      },
+      "EpisodeStart": {
+        "properties": {
+          "episode_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Episode Id"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/RobotProfile"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "episode_id",
+          "profile"
+        ],
+        "title": "EpisodeStart"
+      },
+      "Feedback": {
+        "properties": {
+          "decision_id": {
+            "type": "string",
+            "title": "Decision Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "executed",
+              "rejected",
+              "interrupted"
+            ],
+            "title": "Status"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "executed_steps": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Executed Steps"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "decision_id",
+          "status",
+          "reason",
+          "executed_steps"
+        ],
+        "title": "Feedback"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Joint": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "rad",
+              "m"
+            ],
+            "title": "Unit"
+          },
+          "lower": {
+            "type": "number",
+            "title": "Lower"
+          },
+          "upper": {
+            "type": "number",
+            "title": "Upper"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "unit",
+          "lower",
+          "upper"
+        ],
+        "title": "Joint"
+      },
+      "JointPoint": {
+        "properties": {
+          "time_from_start_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Time From Start S"
+          },
+          "positions": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Positions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "time_from_start_s",
+          "positions"
+        ],
+        "title": "JointPoint"
+      },
+      "JointTrajectory": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "joint-trajectory",
+            "title": "Kind"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/JointPoint"
+            },
+            "type": "array",
+            "maxItems": 256,
+            "minItems": 1,
+            "title": "Points"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "points"
+        ],
+        "title": "JointTrajectory"
+      },
+      "Observation": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "moravec.observation/v0.2",
+            "title": "Schema Version",
+            "default": "moravec.observation/v0.2"
+          },
+          "episode_id": {
+            "type": "string",
+            "title": "Episode Id"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sequence"
+          },
+          "station_time_s": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Station Time S"
+          },
+          "captured_at_s": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Captured At S"
+          },
+          "profile_id": {
+            "type": "string",
+            "title": "Profile Id"
+          },
+          "profile_revision": {
+            "type": "string",
+            "title": "Profile Revision"
+          },
+          "instruction": {
+            "type": "string",
+            "title": "Instruction"
+          },
+          "cameras": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Camera"
+            },
+            "type": "object",
+            "title": "Cameras"
+          },
+          "joint_positions": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Joint Positions"
+          },
+          "tcp_poses": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Pose"
+            },
+            "type": "object",
+            "title": "Tcp Poses"
+          },
+          "gripper_open_fraction": {
+            "additionalProperties": {
+              "type": "number",
+              "maximum": 1.0,
+              "minimum": 0.0
+            },
+            "type": "object",
+            "title": "Gripper Open Fraction"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Feedback"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "episode_id",
+          "sequence",
+          "station_time_s",
+          "captured_at_s",
+          "profile_id",
+          "profile_revision",
+          "instruction",
+          "cameras",
+          "joint_positions",
+          "tcp_poses",
+          "gripper_open_fraction"
+        ],
+        "title": "Observation"
+      },
+      "Pose": {
+        "properties": {
+          "frame": {
+            "type": "string",
+            "title": "Frame"
+          },
+          "position_m": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Position M"
+          },
+          "orientation_wxyz": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Orientation Wxyz"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "frame",
+          "position_m",
+          "orientation_wxyz"
+        ],
+        "title": "Pose"
+      },
+      "RobotProfile": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$",
+            "title": "Id"
+          },
+          "revision": {
+            "type": "string",
+            "title": "Revision"
+          },
+          "joints": {
+            "items": {
+              "$ref": "#/components/schemas/Joint"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Joints"
+          },
+          "frames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Frames"
+          },
+          "cameras": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Cameras"
+          },
+          "control_period_s": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Control Period S"
+          },
+          "max_observation_age_s": {
+            "type": "number",
+            "maximum": 10.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Max Observation Age S"
+          },
+          "max_camera_skew_s": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Max Camera Skew S"
+          },
+          "max_action_duration_s": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Max Action Duration S"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "revision",
+          "joints",
+          "frames",
+          "cameras",
+          "control_period_s",
+          "max_observation_age_s",
+          "max_camera_skew_s",
+          "max_action_duration_s"
+        ],
+        "title": "RobotProfile"
+      },
+      "Stop": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "stop",
+            "title": "Kind"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "reason"
+        ],
+        "title": "Stop"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "status": "requires-qualification",
+  "profile_id": "replace-with-station-profile",
+  "profile_revision": "replace-with-calibration-version",
+  "action_semantics": "absolute-joint-position",
+  "embodiment_tag": "NEW_EMBODIMENT",
+  "camera_bindings": {
+    "front": "overview"
+  },
+  "state_bindings": {
+    "arm": [
+      "shoulder",
+      "elbow"
+    ]
+  },
+  "state_order": [
+    "shoulder",
+    "elbow"
+  ],
+  "language_key": "task",
+  "action_bindings": {
+    "arm": [
+      "shoulder",
+      "elbow"
+    ]
+  }
+}
