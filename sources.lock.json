@@ -1,0 +1,15 @@
+{
+  "xpolicylab": {
+    "repository": "https://github.com/XPolicyLab/XPolicyLab",
+    "revision": "bb9a0b5f5136a74503b679af830bfd0a3a837d5c"
+  },
+  "roboprobe": {
+    "repository": "https://github.com/RoboProbe/RoboProbe",
+    "revision": "52300752080325086095854e01977a8cf281b684"
+  },
+  "model_sources": {
+    "groot": "https://github.com/NVIDIA/Isaac-GR00T",
+    "openwam": "https://github.com/OpenWAM-Official/OpenWAM"
+  },
+  "note": "Adapter sources pin vendored model code. Weight artifacts are not bundled or claimed tested."
+}

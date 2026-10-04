@@ -1,0 +1,151 @@
+{
+  "$defs": {
+    "ArmState": {
+      "additionalProperties": false,
+      "properties": {
+        "joints": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 6,
+          "minItems": 6,
+          "title": "Joints",
+          "type": "array"
+        },
+        "gripper": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Gripper",
+          "type": "number"
+        },
+        "ee_pose": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 7,
+          "minItems": 7,
+          "title": "Ee Pose",
+          "type": "array"
+        }
+      },
+      "required": [
+        "joints",
+        "gripper",
+        "ee_pose"
+      ],
+      "title": "ArmState",
+      "type": "object"
+    },
+    "Camera": {
+      "additionalProperties": false,
+      "properties": {
+        "encoding": {
+          "const": "rgb8-base64",
+          "default": "rgb8-base64",
+          "title": "Encoding",
+          "type": "string"
+        },
+        "shape": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "const": 3,
+              "type": "integer"
+            }
+          ],
+          "title": "Shape",
+          "type": "array"
+        },
+        "data": {
+          "maxLength": 16777216,
+          "title": "Data",
+          "type": "string"
+        },
+        "captured_at_ns": {
+          "minimum": 0,
+          "title": "Captured At Ns",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "shape",
+        "data",
+        "captured_at_ns"
+      ],
+      "title": "Camera",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "moravec.observation/v0.1",
+      "default": "moravec.observation/v0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "episode_id": {
+      "minLength": 1,
+      "title": "Episode Id",
+      "type": "string"
+    },
+    "sequence": {
+      "minimum": 0,
+      "title": "Sequence",
+      "type": "integer"
+    },
+    "captured_at_ns": {
+      "minimum": 0,
+      "title": "Captured At Ns",
+      "type": "integer"
+    },
+    "instruction": {
+      "minLength": 1,
+      "title": "Instruction",
+      "type": "string"
+    },
+    "embodiment": {
+      "const": "arx_x5",
+      "default": "arx_x5",
+      "title": "Embodiment",
+      "type": "string"
+    },
+    "frame_profile": {
+      "const": "robodojo-arx-x5-native/v1",
+      "default": "robodojo-arx-x5-native/v1",
+      "title": "Frame Profile",
+      "type": "string"
+    },
+    "cameras": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Camera"
+      },
+      "title": "Cameras",
+      "type": "object"
+    },
+    "left": {
+      "$ref": "#/$defs/ArmState"
+    },
+    "right": {
+      "$ref": "#/$defs/ArmState"
+    }
+  },
+  "required": [
+    "episode_id",
+    "sequence",
+    "captured_at_ns",
+    "instruction",
+    "cameras",
+    "left",
+    "right"
+  ],
+  "title": "Observation",
+  "type": "object"
+}

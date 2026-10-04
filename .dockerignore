@@ -1,0 +1,10 @@
+*
+!Dockerfile
+!pyproject.toml
+!README.md
+!src/
+!src/**
+!examples/
+!examples/mock/
+!examples/mock/**
+!requirements.lock

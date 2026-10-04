@@ -1,0 +1,75 @@
+{
+  "episode_id": "contract-fixture-001",
+  "sequence": 0,
+  "captured_at_ns": 100,
+  "instruction": "Contract fixture only: hold measured state.",
+  "cameras": {
+    "cam_head": {
+      "shape": [
+        2,
+        2,
+        3
+      ],
+      "data": "/wAAAP8AAAD/////",
+      "captured_at_ns": 100
+    },
+    "cam_left_wrist": {
+      "shape": [
+        2,
+        2,
+        3
+      ],
+      "data": "/wAAAP8AAAD/////",
+      "captured_at_ns": 100
+    },
+    "cam_right_wrist": {
+      "shape": [
+        2,
+        2,
+        3
+      ],
+      "data": "/wAAAP8AAAD/////",
+      "captured_at_ns": 100
+    }
+  },
+  "left": {
+    "joints": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "gripper": 1.0,
+    "ee_pose": [
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "right": {
+    "joints": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "gripper": 1.0,
+    "ee_pose": [
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  }
+}

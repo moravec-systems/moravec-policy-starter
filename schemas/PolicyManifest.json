@@ -1,0 +1,275 @@
+{
+  "$defs": {
+    "AstraBackend": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "roboprobe",
+          "title": "Kind",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "harness": {
+          "const": "RoboDojo_Agent_L3_Inspect_EEF",
+          "title": "Harness",
+          "type": "string"
+        },
+        "planner": {
+          "const": "astra",
+          "title": "Planner",
+          "type": "string"
+        },
+        "model": {
+          "const": "gpt-6-astra",
+          "title": "Model",
+          "type": "string"
+        },
+        "base_url_env": {
+          "title": "Base Url Env",
+          "type": "string"
+        },
+        "api_key_env": {
+          "title": "Api Key Env",
+          "type": "string"
+        },
+        "reasoning_effort": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Reasoning Effort",
+          "type": "string"
+        },
+        "max_model_calls": {
+          "exclusiveMinimum": 0,
+          "maximum": 170,
+          "title": "Max Model Calls",
+          "type": "integer"
+        },
+        "image_history": {
+          "exclusiveMinimum": 0,
+          "maximum": 16,
+          "title": "Image History",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "source",
+        "harness",
+        "planner",
+        "model",
+        "base_url_env",
+        "api_key_env",
+        "reasoning_effort",
+        "max_model_calls",
+        "image_history"
+      ],
+      "title": "AstraBackend",
+      "type": "object"
+    },
+    "Checkpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "status": {
+          "default": "required",
+          "enum": [
+            "required",
+            "configured"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "Checkpoint",
+      "type": "object"
+    },
+    "MockBackend": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "mock",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "MockBackend",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "title": "Repository",
+          "type": "string"
+        },
+        "revision": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "revision"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "XPolicyBackend": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "xpolicy",
+          "title": "Kind",
+          "type": "string"
+        },
+        "policy_name": {
+          "enum": [
+            "GR00T_N17",
+            "OpenWAM"
+          ],
+          "title": "Policy Name",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "config_path": {
+          "title": "Config Path",
+          "type": "string"
+        },
+        "checkpoint": {
+          "$ref": "#/$defs/Checkpoint"
+        }
+      },
+      "required": [
+        "kind",
+        "policy_name",
+        "source",
+        "config_path",
+        "checkpoint"
+      ],
+      "title": "XPolicyBackend",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "moravec.policy/v0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "family": {
+      "enum": [
+        "llm",
+        "vla",
+        "world_action",
+        "test_fixture"
+      ],
+      "title": "Family",
+      "type": "string"
+    },
+    "embodiment": {
+      "const": "arx_x5",
+      "title": "Embodiment",
+      "type": "string"
+    },
+    "action_type": {
+      "enum": [
+        "joint",
+        "ee"
+      ],
+      "title": "Action Type",
+      "type": "string"
+    },
+    "observation_profile": {
+      "const": "rgb-proprioception/v1",
+      "title": "Observation Profile",
+      "type": "string"
+    },
+    "execution": {
+      "enum": [
+        "policy_service",
+        "native_harness",
+        "fixture"
+      ],
+      "title": "Execution",
+      "type": "string"
+    },
+    "validation_status": {
+      "default": "contract_only",
+      "enum": [
+        "contract_only",
+        "live_validated"
+      ],
+      "title": "Validation Status",
+      "type": "string"
+    },
+    "backend": {
+      "discriminator": {
+        "mapping": {
+          "mock": "#/$defs/MockBackend",
+          "roboprobe": "#/$defs/AstraBackend",
+          "xpolicy": "#/$defs/XPolicyBackend"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/XPolicyBackend"
+        },
+        {
+          "$ref": "#/$defs/AstraBackend"
+        },
+        {
+          "$ref": "#/$defs/MockBackend"
+        }
+      ],
+      "title": "Backend"
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "family",
+    "embodiment",
+    "action_type",
+    "observation_profile",
+    "execution",
+    "backend"
+  ],
+  "title": "PolicyManifest",
+  "type": "object"
+}

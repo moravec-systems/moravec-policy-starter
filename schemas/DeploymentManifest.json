@@ -1,0 +1,105 @@
+{
+  "$defs": {
+    "ContainerDeployment": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "container",
+          "title": "Kind",
+          "type": "string"
+        },
+        "image": {
+          "pattern": "^.+@sha256:[0-9a-f]{64}$",
+          "title": "Image",
+          "type": "string"
+        },
+        "token_secret_ref": {
+          "title": "Token Secret Ref",
+          "type": "string"
+        },
+        "gpu_count": {
+          "minimum": 0,
+          "title": "Gpu Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "image",
+        "token_secret_ref",
+        "gpu_count"
+      ],
+      "title": "ContainerDeployment",
+      "type": "object"
+    },
+    "RemoteDeployment": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "remote",
+          "title": "Kind",
+          "type": "string"
+        },
+        "endpoint": {
+          "pattern": "^https://[^\\s]+$",
+          "title": "Endpoint",
+          "type": "string"
+        },
+        "token_secret_ref": {
+          "title": "Token Secret Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "endpoint",
+        "token_secret_ref"
+      ],
+      "title": "RemoteDeployment",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "moravec.deployment/v0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "policy_id": {
+      "title": "Policy Id",
+      "type": "string"
+    },
+    "policy_manifest_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Policy Manifest Sha256",
+      "type": "string"
+    },
+    "backend": {
+      "discriminator": {
+        "mapping": {
+          "container": "#/$defs/ContainerDeployment",
+          "remote": "#/$defs/RemoteDeployment"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ContainerDeployment"
+        },
+        {
+          "$ref": "#/$defs/RemoteDeployment"
+        }
+      ],
+      "title": "Backend"
+    }
+  },
+  "required": [
+    "schema_version",
+    "policy_id",
+    "policy_manifest_sha256",
+    "backend"
+  ],
+  "title": "DeploymentManifest",
+  "type": "object"
+}

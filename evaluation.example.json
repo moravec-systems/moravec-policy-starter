@@ -1,0 +1,12 @@
+{
+  "schema_version": "moravec.evaluation/v0.1",
+  "policy_id": "astra-roboprobe-reference",
+  "benchmark": "RoboDojo",
+  "runtime_profile": "explicitly-pin-your-native-runtime-before-execution",
+  "task": "stack_bowls",
+  "layout_ids": [
+    0
+  ],
+  "status": "smoke",
+  "infrastructure_retry_limit": 0
+}
