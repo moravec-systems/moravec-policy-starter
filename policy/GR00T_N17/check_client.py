@@ -16,7 +16,8 @@ def main():
         'language': {'annotation.human.action.task_description': [['pick up the bowl']]},
     }
     obs['state']['gripper'] = np.zeros((1, 1, 2), dtype=np.float32)
-    with WsModelClient(url=args.url, request_timeout_s=180) as client:
+    with WsModelClient(url=args.url, evaluation_id="container-check",
+                       trial_id="synthetic-input", request_timeout_s=180) as client:
         client.call('reset')
         client.call('update_obs', obs=obs)
         actions = client.call('get_action')

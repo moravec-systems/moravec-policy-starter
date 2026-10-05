@@ -12,3 +12,22 @@ python scripts/demo_roundtrip.py
 The example supplies temporary configuration and exercises observations, action retrieval, batching, and reset. No simulator or GPU is required.
 
 To build an adapter, start with `model.py`, keep deployment settings in `deploy.yml`, and follow the [integration guide](../../INTEGRATION.md).
+
+## Container quickstart
+
+This CPU-only container supplies synthetic YAM dimensions internally. It needs
+Docker, but no GPU, checkpoint, simulator, or external evaluator configuration.
+From the repository root:
+
+```sh
+docker build -f policy/demo_policy/Dockerfile -t moravec-demo-policy:demo .
+docker run --rm -d --name moravec-demo-policy \
+  -p 127.0.0.1:6000:6000 moravec-demo-policy:demo
+docker exec moravec-demo-policy python policy/demo_policy/check_client.py
+docker stop moravec-demo-policy
+```
+
+The client sends an observation, checks two synthetic action steps, and resets
+the policy. No actions are executed. Port 6000 must be available. For a client
+on another machine, use the SSH tunnel in the integration guide. This is a
+transport example, not a learned policy or a physical robot controller.

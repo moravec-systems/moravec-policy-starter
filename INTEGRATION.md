@@ -1,5 +1,31 @@
 # Policy integration
 
+## Policy handoff
+
+The starter defines the policy interface and container examples. The web demo validates registration fields locally and stops at “Configuration ready.” Image retrieval, GPU deployment, runtime validation, simulation scheduling, and results delivery are planned backend work, not implemented by the demo.
+
+### What the customer provides
+
+- Policy name/version and a private registry image reference pinned by digest (`registry/repository@sha256:…`). Local example tags are for development, not published artifacts.
+- Checkpoint identity/version and packaging: included in the image, or supplied separately through an agreed delivery method. State any gated dependencies. The GR00T demo allows downloads; it is not an offline deployment package.
+- Supported Linux architecture, GPU count/type or minimum VRAM, and expected model-loading time.
+- Container startup command, configuration, WebSocket port (6000 in these examples), and readiness behavior.
+- Required cameras/state, image layout, action dimensions/units/frames, trained embodiment, and any task-specific assumptions. Matching dimensions alone do not qualify a checkpoint for a robot.
+
+Use the [GR00T example](policy/GR00T_N17/README.md#container-quickstart) as a starting point and the [synthetic demo](policy/demo_policy/README.md#container-quickstart) to check transport without weights or a GPU. The supplied GR00T checkpoint targets LIBERO simulation, not YAM. The new container builds and imports successfully; GPU inference inside it remains pending.
+
+### How Moravec will pull and run it
+
+1. The customer publishes the image to its own registry and registers the image reference/configuration. The browser does not receive the image or weights.
+2. The customer and Moravec arrange scoped, read-only registry access through an agreed secure channel. Do not include tokens in JSON, Git, Dockerfiles, or browser demo uploads. This credential onboarding is not implemented yet.
+3. Moravec's deployment service authenticates to the registry and pulls the specified digest onto approved infrastructure. Registry credentials stay with the deployment service, outside the policy container.
+4. Moravec checks startup/readiness, observation/action compatibility, reset, and real inference before running task trials. A successful JSON check is not runtime validation; an inference check is not task success.
+5. An evaluation worker connects to the policy over the private network, runs the selected simulator/tasks, and records scores, video, actions, and version metadata. Physical execution requires separate station qualification.
+
+The NVIDIA pilot draft calls for dedicated facility inference machines without open-internet access. That deployment requires weights and dependencies to be available before startup; it is a later deployment target, not a property of today's downloadable-weight example. Customer-hosted remote policy serving is an alternative by agreement, using the same observation/action interface and separately arranged authenticated connectivity.
+
+Registry access can be revoked to stop future pulls; it does not remotely disable an already-downloaded image. Retention/deletion and results-storage access are agreed separately. No registry or results-storage credentials are needed to try the current web demo.
+
 ## Interface
 
 Each `policy/<name>/model.py` exposes `Model(model_cfg)` with:

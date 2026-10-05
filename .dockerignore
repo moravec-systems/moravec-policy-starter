@@ -27,3 +27,4 @@
 **/*.pyc
 !policy/GR00T_N17/requirements.lock
 !policy/GR00T_N17/Dockerfile
+!policy/demo_policy/Dockerfile

@@ -15,7 +15,16 @@ Examples for integrating customer policies with Moravec evaluation. Each policy 
 
 Use each example's README and `deploy.yml` for its dependencies, checkpoint, and launch settings. GPU runtimes and checkpoints are installed separately. Model and agent implementations are fetched on demand with `scripts/fetch_policy.py` or, for MolmoAct2, as part of its pinned Hugging Face snapshot; they are not stored in Git. Each policy README gives its runtime setup commands.
 
-For the container handoff, start with the [GR00T container quickstart](policy/GR00T_N17/README.md#container-quickstart). The [web demo](https://moravec-evaluation-demo.vercel.app/demo) previews submission; it does not execute containers or simulations. Other policies will receive containers later.
+## Submitting a policy
+
+1. Build and test your policy container. Start with the [CPU-only demo](policy/demo_policy/README.md#container-quickstart) for transport, or [GR00T](policy/GR00T_N17/README.md#container-quickstart) for the learned-model integration.
+2. Publish the image to your own private registry and identify its immutable digest.
+3. Register the image reference and configuration with Moravec; arrange scoped read-only registry access separately. Never put credentials in the configuration file.
+4. Moravec will pull and validate the image, then run selected evaluations through the upcoming backend.
+
+The [web demo](https://moravec-evaluation-demo.vercel.app/demo) currently checks registration configuration only. It does not pull images, load weights, start evaluations, or verify model compatibility. The JSON sample is a UI fixture, not an adopted backend schema. See [Policy handoff](INTEGRATION.md#policy-handoff) for what to provide and how deployment will work.
+
+GR00T's included checkpoint is a LIBERO simulation example, not a YAM-qualified policy. Its container build and imports have been checked; learned inference inside the container still requires GPU verification. Other learned-model containers will follow.
 
 ## Hardware scope
 
