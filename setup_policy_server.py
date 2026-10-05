@@ -104,7 +104,6 @@ def parse_args_and_config():
     parser.add_argument("--protocol", choices=("legacy_tcp", "ws"), help="Policy server protocol")
     parser.add_argument("--host", help="Policy server bind host")
     parser.add_argument("--port", type=int, help="Policy server bind port")
-    parser.add_argument("--relay-url", dest="relay_url", help="Relay URL for future relay mode")
     parser.add_argument("--overrides", nargs=argparse.REMAINDER, help="Override config values")
     args = parser.parse_args()
 
@@ -147,8 +146,6 @@ def parse_args_and_config():
         cfg["host"] = args.host
     if args.port is not None:
         cfg["port"] = args.port
-    if args.relay_url is not None:
-        cfg["relay_url"] = args.relay_url
 
     def _require_non_empty(key: str):
         if key not in cfg:

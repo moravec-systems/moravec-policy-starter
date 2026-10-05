@@ -590,7 +590,6 @@ def main() -> None:
     parser.add_argument("--protocol", choices=("ws",), default="ws")
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
-    parser.add_argument("--relay-url", dest="relay_url")
     args = parser.parse_args()
 
     with open(args.config_path, "r", encoding="utf-8") as f:
@@ -602,8 +601,6 @@ def main() -> None:
         deploy_cfg["host"] = args.host
     if args.port is not None:
         deploy_cfg["port"] = args.port
-    if args.relay_url is not None:
-        deploy_cfg["relay_url"] = args.relay_url
 
     policy_name = deploy_cfg.get("policy_name")
     if not policy_name:
