@@ -19,4 +19,23 @@ Configure the checkpoint, training configuration, normalization assets, and envi
 
 Activate the model runtime, then use the shared Python server from the repository root as described in the [integration guide](../../INTEGRATION.md#remote-serving). Weights are separate downloads. Training and benchmark orchestration are outside this starter's scope.
 
-The [source manifest](../../scripts/fetch_policy.py) pins the exact implementation snapshot used by this adapter. The current shared demo validates transport only; real-checkpoint simulation qualification remains outstanding.
+The [source manifest](../../scripts/fetch_policy.py) pins the exact implementation snapshot used by this adapter. The shared demo validates transport only; the checkpoint checks below exercise learned inference.
+
+## Concrete research fixture
+
+The deployment example uses [this community π0.5 checkpoint](https://huggingface.co/cjgogo/RoboDojo-pi05-checkpoints), revision `c9d496dd7901f4d7bf9055fb88b41cb66aea3e36`, step `14077`. Its model card restricts the benchmark-derived checkpoint to noncommercial research/evaluation; this is a test fixture, not a recommendation for customer deployment.
+
+From the repository root, download inference parameters and normalization assets only:
+
+```sh
+hf download cjgogo/RoboDojo-pi05-checkpoints \
+  --revision c9d496dd7901f4d7bf9055fb88b41cb66aea3e36 \
+  --include 'checkpoints/sim-10task/14077/params/**' \
+            'checkpoints/sim-10task/14077/assets/**' \
+            'checkpoints/sim-10task/14077/_CHECKPOINT_METADATA' \
+  --local-dir policy/Pi_05
+```
+
+Activate the model environment and set `XLA_PYTHON_CLIENT_PREALLOCATE=false` when sharing a GPU with simulation. `env_cfg_type: arx_x5` requires the corresponding evaluator configuration. The training config name and normalization asset ID are checkpoint-specific identifiers; do not rename them as branding.
+
+Native inference and adapter outputs matched exactly with fixed noise on both a synthetic input and a captured Isaac Sim observation (50 steps × 14 dimensions). In four Isaac Sim episodes on 2026-10-05, Stack Bowls passed 2/2; Stack Blocks passed 0/2 (15% and 0% partial credit). These small trials validate integration, not broad task reliability.

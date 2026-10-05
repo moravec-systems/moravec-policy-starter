@@ -133,6 +133,10 @@ def _resolve_checkpoint_dir(model_cfg: dict[str, Any]) -> Path:
     if not root.is_dir():
         raise FileNotFoundError(f"Checkpoint root not found: {root}")
 
+    # Released checkpoints may be the model directory itself.
+    if (root / "config.json").is_file():
+        return root
+
     search_roots = [root]
     for child in sorted(root.iterdir()):
         if child.is_dir() and not child.name.startswith("checkpoint-"):
@@ -287,7 +291,7 @@ def _gr00t_action_to_env(action: dict[str, np.ndarray], action_type: str) -> lis
 
     if action_type != "joint":
         raise ValueError(
-            f"GR00T_N17 RoboDojo arx_x5 is trained with joint-space relative actions (action_type=joint). "
+            f"This GR00T_N17 ARX X5 adapter expects a checkpoint trained with joint-space relative actions (action_type=joint). "
             f"Got action_type={action_type!r}."
         )
 
@@ -311,10 +315,14 @@ class Model(ModelTemplate):
         self.model_cfg = model_cfg
         self.action_type = model_cfg.get("action_type", "joint")
         self.default_prompt = model_cfg.get("default_prompt", model_cfg.get("task_name", "Perform the robot manipulation task."))
-        self.env_cfg_type = model_cfg["env_cfg_type"]
+        self.env_cfg_type = model_cfg.get("env_cfg_type")
+        self.io_format = model_cfg.get("io_format", "arx_x5")
+        if self.io_format not in {"native", "arx_x5"}:
+            raise ValueError("io_format must be native or arx_x5")
         self.device = model_cfg.get("device", "cuda:0" if self._has_cuda() else "cpu")
 
-        _load_modality_config(self.env_cfg_type)
+        if self.io_format == "arx_x5":
+            _load_modality_config(self.env_cfg_type)
         checkpoint_dir = _resolve_checkpoint_dir(model_cfg)
         embodiment_tag = model_cfg.get("embodiment_tag", "NEW_EMBODIMENT")
         cosmos_model = _resolve_cosmos_model(model_cfg)
@@ -350,7 +358,8 @@ class Model(ModelTemplate):
 
     def update_obs_batch(self, obs_list):
         self._latest_env_idx_list = [obs.get("env_idx", index) for index, obs in enumerate(obs_list)]
-        self._obs_list = [_encode_observation(obs, self.default_prompt) for obs in obs_list]
+        self._obs_list = (list(obs_list) if self.io_format == "native" else
+                          [_encode_observation(obs, self.default_prompt) for obs in obs_list])
 
     def get_action(self, **kwargs):
         if not self._obs_list:
@@ -362,9 +371,19 @@ class Model(ModelTemplate):
             raise AssertionError("update_obs or update_obs_batch first!")
 
         action_list = []
-        for encoded_obs in self._obs_list:
+        indices = self._latest_env_idx_list if env_idx_list is None else env_idx_list
+        for env_idx in indices:
+            encoded_obs = self._obs_list[self._latest_env_idx_list.index(env_idx)]
             gr00t_action, _ = self.policy.get_action(encoded_obs, **kwargs)
-            action_list.append(_gr00t_action_to_env(gr00t_action, self.action_type))
+            if self.io_format == "native":
+                arrays = {key: np.asarray(value)[0] for key, value in gr00t_action.items()}
+                if any(value.shape[0] != self.action_horizon or not np.isfinite(value).all()
+                       for value in arrays.values()):
+                    raise ValueError("Invalid native action chunk")
+                action_list.append([{key: value[step] for key, value in arrays.items()}
+                                    for step in range(self.action_horizon)])
+            else:
+                action_list.append(_gr00t_action_to_env(gr00t_action, self.action_type))
         return action_list
 
     def reset(self):

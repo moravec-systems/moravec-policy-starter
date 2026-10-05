@@ -50,9 +50,17 @@ The demo emits zero actions, which can command motion under absolute control. Us
 
 ## Validation and scope
 
-The restart passed four WebSocket demo checks: reset, observation update, and action retrieval for single-arm and bimanual fixtures in joint and end-effector modes. Those are transport/shape checks, not model inference, task success, or hardware qualification. Previous implementation results do not transfer to this fork.
+Validation on 2026-10-05 used an NVIDIA L40S for learned policies and simulation, and the direct OpenAI API for Astra. GR00T ran in LIBERO/MuJoCo; the other policies use an external Isaac Sim evaluator. These different task fixtures are integration checks, not comparable model rankings.
 
-Next: connect an evaluator, verify YAM observation/action semantics, and qualify each selected policy/checkpoint in simulation. We will refine deployment packaging and any shared compatibility schema with NVIDIA from those integrations. No new station abstraction or policy protocol is introduced here. Training and benchmark launch scripts are excluded from this inference starter.
+- The hardware-free demo passes six transport checks.
+- GR00T: 4/4 successful episodes across two LIBERO tasks, plus a successful repeat using the included `scripts/validate_gr00t_libero.py`. A Mac client also retrieved real inference over an SSH tunnel.
+- π0.5: Stack Bowls 2/2 successes; Stack Blocks 0/2 successes (15% and 0% partial credit).
+- OpenWAM: Stack Bowls 2/2 successes; Stack Blocks 0/2 successes (15% partial credit each).
+- Astra: direct OpenAI API, Stack Bowls 0/2 successes; Stack Blocks 1/2 successes, with a 40-call limit per trial.
+
+GR00T, π0.5, and OpenWAM adapter outputs matched native inference on captured simulator observations. This checks conversion consistency; it does not imply every task succeeds. See each policy README for checkpoint revisions and settings. Raw traces, videos, weights, and credentials remain outside Git.
+
+YAM and FR3 physical operation remains unqualified. Next steps are matching trained checkpoints to those embodiments and validating their cameras, frames, joint order, and control behavior. Deployment packaging and any broader compatibility schema can be refined with NVIDIA. Training and full benchmark orchestration are outside this starter's scope.
 
 ## Development
 

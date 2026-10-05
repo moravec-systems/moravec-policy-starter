@@ -129,11 +129,12 @@ class Model(ModelTemplate):
         if self.observation_window is None:
             raise AssertionError("update_obs or update_obs_batch first!")
 
-        env_idx_list = env_idx_list or self._latest_env_idx_list
+        env_idx_list = self._latest_env_idx_list if env_idx_list is None else env_idx_list
         # actions = self.policy.infer(self.observation_window, **kwargs)["actions"]
         action_list = []
 
-        for batch_index, _ in enumerate(env_idx_list):
+        for env_idx in env_idx_list:
+            batch_index = self._latest_env_idx_list.index(env_idx)
             single_observation = slice_stacked_obs(self.observation_window, batch_index)
             actions = self.policy.infer(single_observation, **kwargs)["actions"]
             if self.robot_action_dim_info is None:

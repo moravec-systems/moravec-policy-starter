@@ -17,4 +17,20 @@ Use a compatible checkpoint with its configuration and normalization files. `mod
 
 Activate the model runtime, then use the shared Python server from the repository root as described in the [integration guide](../../INTEGRATION.md#remote-serving). Weights are separate downloads. Training and benchmark orchestration are outside this starter's scope.
 
-The [source manifest](../../scripts/fetch_policy.py) pins the exact implementation snapshot used by this adapter. The current shared demo validates transport only; real-checkpoint simulation qualification remains outstanding.
+The [source manifest](../../scripts/fetch_policy.py) pins the exact implementation snapshot used by this adapter. The shared demo validates transport only; the checkpoint checks below exercise learned inference.
+
+## Research fixture
+
+Download the [released simulation checkpoint](https://huggingface.co/OpenWAM/OpenWAM-Alpha-Sim-RoboDojo) into the path selected by `deploy.yml`:
+
+```sh
+hf download OpenWAM/OpenWAM-Alpha-Sim-RoboDojo \
+  --revision 2c1302294e3ba8319bbdb2c803b7a27de9292d03 \
+  --local-dir policy/OpenWAM/checkpoints/openwam-sim
+```
+
+This fixture requires the evaluator's ARX X5 environment configuration. It does not qualify YAM or FR3 hardware. Single-environment evaluation is the tested default; parallel simulation throughput is a separate check.
+
+Native inference and the adapter matched exactly on one captured Isaac Sim observation, across all four action fields and 32 prediction steps.
+
+On 2026-10-05, the adapter served four Isaac Sim episodes: Stack Bowls 2/2 successes; Stack Blocks 0/2 successes, 15% partial credit each. These small integration trials establish functioning inference and control, not broad task reliability.

@@ -8,7 +8,7 @@ from gr00t.data.types import (
     ModalityConfig,
 )
 
-robodojo_arx_x5_config = {
+arx_x5_config = {
     "video": ModalityConfig(
         delta_indices=[0],
         modality_keys=["front", "left_wrist", "right_wrist"],
@@ -40,6 +40,6 @@ robodojo_arx_x5_config = {
 }
 
 register_modality_config(
-    robodojo_arx_x5_config,
+    arx_x5_config,
     embodiment_tag=EmbodimentTag.NEW_EMBODIMENT,
 )

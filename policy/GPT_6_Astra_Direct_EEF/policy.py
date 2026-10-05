@@ -71,7 +71,10 @@ class EefAgentPolicy(JointAgentPolicy):
         self._planner = planner
         # The tool description quotes the playout cap, so the limits have to be
         # known before the base constructor builds the tools.
-        env = kwargs.get("env") or {}
+        env = dict(kwargs.get("env") or {})
+        env.setdefault("L4_INSPECT_BASE_URL", "https://api.openai.com/v1")
+        env.setdefault("L4_INSPECT_API_KEY_ENV", "OPENAI_API_KEY")
+        kwargs["env"] = env
         self._max_duration_s = _optional_float(
             env, "L4_INSPECT_EEF_MAX_DURATION_S", _DEFAULT_MAX_DURATION_S
         )

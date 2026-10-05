@@ -1,21 +1,12 @@
-# Basic experiment configuration
+# Research checkpoint for the ARX X5 simulation fixture; see README for provenance.
 policy_name: Pi_05
 protocol: ws
-host: localhost
-bench_name: null
-task_name: null
-env_cfg_type: null
-seed: null
-eval_batch: true
-
-checkpoint_num: 59999
-result_dir: "./results/pi05/"
-obs_transform_pipeline: "xspark-v1.0"
-
-# Model / action configuration
+host: 127.0.0.1
+port: 6000
+env_cfg_type: arx_x5
+task_name: stack_bowls
 action_type: joint
-# Must match the config used by train.sh (default OPENPI_TRAIN_CONFIG_NAME).
+eval_batch: false
+model_path: checkpoints/sim-10task/14077
 train_config_name: pi05_base_aloha_full_sim_arx-x5_seed_0
 repo_id: arx_x5_sim
-
-port: 6000
