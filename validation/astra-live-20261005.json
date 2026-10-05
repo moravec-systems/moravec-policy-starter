@@ -1,0 +1,72 @@
+{
+  "simulator": "mujoco",
+  "station_transport": "WebSocket/MessagePack v0.3",
+  "simulator_version": "3.14.0",
+  "model_execution": true,
+  "test_double": null,
+  "episodes": 1,
+  "passed": 1,
+  "results": [
+    {
+      "mode": "gpt-6-astra",
+      "seed": 0,
+      "position_error_m": 9.68818579894568e-08,
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "Not Isaac Sim validation",
+    "Not GR00T/OpenWAM inference",
+    "Not robot task benchmark results"
+  ],
+  "scene_sha256": "c763a21065d83d2562b7b25dc4720f17cf13a3ee1b022f806bc67534898361a7",
+  "date": "2026-10-05",
+  "provider_endpoint": "https://api.openai.com/v1/responses",
+  "api_calls": 2,
+  "responses": [
+    {
+      "id": "resp_0a6adeaeb2047a10016ac39e41506087d2b2f9c3a0575f2b76",
+      "model": "gpt-6-astra",
+      "status": "completed",
+      "usage": {
+        "input_tokens": 909,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 95,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 1004
+      }
+    },
+    {
+      "id": "resp_0a6adeaeb2047a10016ac39e45ae3887d2aa994044ee64c262",
+      "model": "gpt-6-astra",
+      "status": "completed",
+      "usage": {
+        "input_tokens": 1589,
+        "input_tokens_details": {
+          "cache_write_tokens": 1463,
+          "cached_tokens": 0
+        },
+        "output_tokens": 45,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 1634
+      }
+    }
+  ],
+  "action_sequence": [
+    "pose-trajectory",
+    "stop"
+  ],
+  "validation_scope": "Numeric-target integration smoke test, not a visual reasoning or customer benchmark",
+  "artifact_sha256": {
+    "events.json": "3ecb7951704d8b845765985cd66f750ddd4e9564680b947850469db5e72533b3",
+    "conformance.mp4": "e852b8f3e23d7d9a7a8517e2d861d83c5659ce391914e626c4fe8bcef9e7c450",
+    "report.json": "5802266cceb330ddf73f90b3919c371de2855f719b357adaaf8cfcc60560c4f9"
+  }
+}
