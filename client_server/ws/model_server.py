@@ -23,7 +23,7 @@ from client_server.ws.protocol.exceptions import ErrorCode, WsError
 from client_server.ws.protocol.keepalive import normalize_ws_ping
 from client_server.ws.protocol.messages import MessageType
 from client_server.ws.protocol.schemas import Frame
-from XPolicyLab.utils.process_data import decode_obs_images
+from moravec_policy.utils.process_data import decode_obs_images
 
 logger = logging.getLogger(__name__)
 
@@ -406,7 +406,7 @@ class PolicyServer:
                 MessageType.HELLO_ACK,
                 {
                     "ok": True,
-                    "server": "xpolicylab_policy_server",
+                    "server": "moravec_policy_server",
                     "server_instance_id": self._instance_id,
                 },
             )
@@ -608,7 +608,7 @@ def main() -> None:
     policy_name = deploy_cfg.get("policy_name")
     if not policy_name:
         raise ValueError("policy_name must be specified in config")
-    module = importlib.import_module(f"XPolicyLab.policy.{policy_name}.model")
+    module = importlib.import_module(f"moravec_policy.policy.{policy_name}.model")
     model_class = getattr(module, "Model")
     model = model_class(deploy_cfg)
 

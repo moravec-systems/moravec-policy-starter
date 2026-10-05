@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import cv2
-from XPolicyLab.utils.load_file import load_json, load_yaml
+from moravec_policy.utils.load_file import load_json, load_yaml
 
 def _validate_config(action_type: str, robot_action_dim_info: dict, source_type: str):
     """
@@ -264,7 +264,7 @@ def get_action_dim(env_cfg_type):
     robot_action_dim_info = load_json(os.path.join(os.path.dirname(__file__), "../../env_cfg/robot", "_robot_info.json"))[robot_name]
     return sum(robot_action_dim_info["arm_dim"]) + sum(robot_action_dim_info["ee_dim"])
 
-# Two image bit stream formats exist in XPolicyLab data, and both decode to RGB.
+# Two image bit stream formats exist in moravec_policy data, and both decode to RGB.
 #
 #   legacy    A JPEG written by handing an RGB array straight to cv2.imencode,
 #             which reads its input as BGR. The stored bytes are therefore
@@ -745,7 +745,7 @@ def encode_image_bit(images, quality=None):
 
 def images_encoding(imgs):
     """
-    JPEG-encode RGB frames for storage in the XPolicyLab layout and report the
+    JPEG-encode RGB frames for storage in the moravec_policy layout and report the
     width of the fixed-size HDF5 byte column they fit into, which pads the
     shorter buffers with NUL on write.
 

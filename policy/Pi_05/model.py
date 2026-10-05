@@ -14,9 +14,9 @@ from openpi.policies import policy_config as _policy_config
 from openpi.shared import normalize as _normalize
 from openpi.training import config as _config
 
-from XPolicyLab.model_template import ModelTemplate
-from XPolicyLab.utils.checkpoint_resolver import candidate_checkpoint_roots
-from XPolicyLab.utils.process_data import (
+from moravec_policy.model_template import ModelTemplate
+from moravec_policy.utils.checkpoint_resolver import candidate_checkpoint_roots
+from moravec_policy.utils.process_data import (
     get_robot_action_dim_info,
     pack_robot_state,
     unpack_robot_state,

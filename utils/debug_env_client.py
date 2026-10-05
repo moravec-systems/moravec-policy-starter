@@ -3,16 +3,16 @@ import os
 import sys
 from pathlib import Path
 
-# client_server/ and the XPolicyLab package are both rooted at the checkout;
+# client_server/ and the moravec_policy package are both rooted at the checkout;
 # insert it so this script also works when invoked directly by path.
-_XPOLICYLAB_ROOT = Path(__file__).resolve().parents[1]
-if str(_XPOLICYLAB_ROOT) not in sys.path:
-    sys.path.insert(0, str(_XPOLICYLAB_ROOT))
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 import numpy as np
 
 from client_server.tcp.model_client import ModelClient
-from XPolicyLab.utils.process_data import encode_image_bit, get_robot_action_dim_info
+from moravec_policy.utils.process_data import encode_image_bit, get_robot_action_dim_info
 
 Batch_Size = 10
 
@@ -168,9 +168,9 @@ class TestEnv:
     def eval_one_episode(self):
         policy_name = self.deploy_cfg['policy_name']
         try:
-            eval_module = __import__(f'XPolicyLab.policy.{policy_name}.deploy', fromlist=['eval_one_episode'])
+            eval_module = __import__(f'moravec_policy.policy.{policy_name}.deploy', fromlist=['eval_one_episode'])
         except ImportError as e:
-            print("[TestEnv]", f"Failed to import policy module: XPolicyLab.policy.{policy_name}.deploy. Error: {e}", "ERROR")
+            print("[TestEnv]", f"Failed to import policy module: moravec_policy.policy.{policy_name}.deploy. Error: {e}", "ERROR")
             raise e
             
         if not hasattr(eval_module, 'eval_one_episode'):
@@ -182,9 +182,9 @@ class TestEnv:
     def eval_one_episode_batch(self):
         policy_name = self.deploy_cfg['policy_name']
         try:
-            eval_module = __import__(f'XPolicyLab.policy.{policy_name}.deploy', fromlist=['eval_one_episode_batch'])
+            eval_module = __import__(f'moravec_policy.policy.{policy_name}.deploy', fromlist=['eval_one_episode_batch'])
         except ImportError as e:
-            print("[TestEnv]", f"Failed to import policy module: XPolicyLab.policy.{policy_name}.deploy. Error: {e}", "ERROR")
+            print("[TestEnv]", f"Failed to import policy module: moravec_policy.policy.{policy_name}.deploy. Error: {e}", "ERROR")
             raise e
             
         if not hasattr(eval_module, 'eval_one_episode_batch'):
@@ -330,7 +330,7 @@ if __name__ == "__main__":
     parser.add_argument("--bench_name", required=True, type=str)
     parser.add_argument("--task_name", required=True, type=str)
     parser.add_argument("--env_cfg_type", type=str, required=True)
-    parser.add_argument("--policy_name", type=str, required=True, help="XPolicyLab module name for deployment")
+    parser.add_argument("--policy_name", type=str, required=True, help="moravec_policy module name for deployment")
     parser.add_argument("--protocol", choices=("legacy_tcp", "ws"), default="ws")
     parser.add_argument("--host", type=str, default="localhost", help="server host")
     parser.add_argument("--port", type=int, required=True, help="server port")
@@ -350,7 +350,7 @@ if __name__ == "__main__":
     eval_batch = deploy_cfg['eval_batch']
 
     try:
-        # Load XPolicyLab
+        # Load moravec_policy
         for idx in range(deploy_cfg["eval_episode_num"]):
             print(f"\033[94m🚀 Running Episode {idx}\033[0m")
             test_env.reset() # reset model, robot, and environment

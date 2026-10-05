@@ -1,9 +1,9 @@
-"""XPolicyLab adapter for the OpenWAM policy (RoboDojo dual-arm arx_x5, EE control).
+"""moravec_policy adapter for the OpenWAM policy (RoboDojo dual-arm arx_x5, EE control).
 
 Loads the OpenWAM checkpoint in-process through the standard deploy path
 (``openwam.deploy.server.build_server_from_config`` — the same construction
 the JSON WebSocket server and ``scripts/verify_batch_equivalence.py`` use),
-then serves XPolicyLab's batched eval protocol. Every ``get_action_batch``
+then serves moravec_policy's batched eval protocol. Every ``get_action_batch``
 call stacks all running envs into ONE ``engine.generate_batch`` forward pass
 (true batch inference, verified contamination-free on real weights).
 
@@ -18,7 +18,7 @@ Coordinate contract (must mirror training — ``openwam/dataloader/robodojo.py``
     action model emits absolute EEF20 in robot-base frame (physical units)
         -> per-arm pose + gripper (eef20_to_arms)
         -> env-relative world     (robot_base_to_env_relative_world)
-        -> XPolicyLab ee dicts    {left_ee_pose, left_ee_joint_state,
+        -> moravec_policy ee dicts    {left_ee_pose, left_ee_joint_state,
                                    right_ee_pose, right_ee_joint_state}
 
 Correctness-first settings are re-forced at load time regardless of the yaml:
@@ -34,9 +34,9 @@ from typing import Any
 
 import numpy as np
 
-from XPolicyLab.model_template import ModelTemplate
-from XPolicyLab.utils.checkpoint_resolver import resolve_checkpoint_root
-from XPolicyLab.utils.process_data import get_robot_action_dim_info
+from moravec_policy.model_template import ModelTemplate
+from moravec_policy.utils.checkpoint_resolver import resolve_checkpoint_root
+from moravec_policy.utils.process_data import get_robot_action_dim_info
 
 POLICY_DIR = Path(__file__).resolve().parent
 # Downloaded OpenWAM source tree (weights excluded).
@@ -72,7 +72,7 @@ def _is_none_like(value: Any) -> bool:
 
 
 def _resolve_ckpt_dir(model_cfg: dict) -> Path:
-    """Resolve the OpenWAM checkpoint directory via the shared XPolicyLab rules.
+    """Resolve the OpenWAM checkpoint directory via the shared moravec_policy rules.
 
     Precedence: explicit ``ckpt_dir`` / path-like ``ckpt_name`` >
     ``checkpoints/<bench>-<ckpt>-<env>-<action>-<seed>/`` >
@@ -365,7 +365,7 @@ class Model(ModelTemplate):
         return self._eef20_chunk_to_native(np.tile(eef20, (steps, 1)))
 
     # ------------------------------------------------------------------
-    # XPolicyLab protocol
+    # moravec_policy protocol
     # ------------------------------------------------------------------
     def update_obs(self, obs):
         self.update_obs_batch([obs])

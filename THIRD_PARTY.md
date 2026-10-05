@@ -1,6 +1,6 @@
 # Third-party notices
 
-This repository includes modified code from [XPolicyLab](https://github.com/XPolicyLab/XPolicyLab), revision `45ae74c1a427206f62d55f08f48f00295d2dc1a3`, under the [Apache License 2.0](LICENSE). Moravec modifications narrow the policy and hardware catalog, replace project documentation, remove branding and agent-tool configuration, and add a hardware-free validation example. The original Python namespace remains for import compatibility.
+This repository includes modified code from [XPolicyLab](https://github.com/XPolicyLab/XPolicyLab), revision `45ae74c1a427206f62d55f08f48f00295d2dc1a3`, under the [Apache License 2.0](LICENSE). Moravec modifications narrow the policy and hardware catalog, replace project documentation, remove branding and agent-tool configuration, and add a hardware-free validation example. Moravec also changes the Python namespace and adapts fetched agent imports to `moravec_policy`.
 
 Model and agent implementation source is fetched during setup from the pinned snapshot specified in `scripts/fetch_policy.py`, rather than distributed in this repository. The fetched implementations retain their original licenses and notices. Refer to [the pinned source tree](https://github.com/XPolicyLab/XPolicyLab/tree/45ae74c1a427206f62d55f08f48f00295d2dc1a3/policy) for those files.
 

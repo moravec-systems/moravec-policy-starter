@@ -6,8 +6,8 @@ import copy
 from dataclasses import replace
 from typing import Any
 
-from XPolicyLab.policy.GPT_6_Astra_Direct_EEF.inspect import deploy as joint_deploy
-from XPolicyLab.policy.GPT_6_Astra_Direct_EEF.inspect.policy import (
+from moravec_policy.policy.GPT_6_Astra_Direct_EEF.inspect import deploy as joint_deploy
+from moravec_policy.policy.GPT_6_Astra_Direct_EEF.inspect.policy import (
     InfrastructureFailure,
 )
 

@@ -4,7 +4,7 @@ import traceback
 from .utils import *
 import time
 
-from XPolicyLab.utils.process_data import decode_obs_images
+from moravec_policy.utils.process_data import decode_obs_images
 
 class ModelServer:
     def __init__(self, model, host="localhost", port=None):

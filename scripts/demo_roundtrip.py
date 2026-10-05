@@ -1,6 +1,6 @@
 """Hardware-free demo: python scripts/demo_roundtrip.py (after pip install -e .).
 
-Uses the unchanged upstream demo and transport in a temporary evaluator layout.
+Uses the demo and transport in a temporary evaluator layout.
 Images and state are synthetic; zero actions are never sent to hardware.
 """
 import asyncio
@@ -30,7 +30,7 @@ async def main():
     # so this example cannot overwrite a user's evaluator configuration.
     with tempfile.TemporaryDirectory(prefix='moravec-demo-') as temporary:
         root = Path(temporary)
-        package = root / 'XPolicyLab'
+        package = root / 'moravec_policy'
         package.mkdir()
         for name in ('__init__.py', 'model_template.py'):
             shutil.copy2(REPO / name, package / name)
@@ -48,7 +48,7 @@ async def main():
         shutil.copy2(registry, env / 'robot/_robot_info.json')
         (env / 'sim/demo.yml').write_text('scene:\n  num_envs: 2\n')
         sys.path[:0] = [str(root), str(package)]
-        from XPolicyLab.policy.demo_policy.model import Model
+        from moravec_policy.policy.demo_policy.model import Model
         from client_server.ws.model_server import PolicyServer, PolicyServerConfig
         from client_server.ws.model_client import WsModelClient
 
@@ -63,6 +63,18 @@ async def main():
                               for camera in ('cam_head', 'cam_left_wrist', 'cam_right_wrist')}}
             for mode in ('joint', 'ee'):
                 model = Model({'env_cfg_type': robot, 'action_type': mode})
+                try:
+                    Model({'env_cfg_type': robot, 'action_type': 'invalid'})
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError('Invalid action type accepted')
+                try:
+                    model.get_action_batch([99])
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError('Unknown environment accepted')
                 server = PolicyServer(model, PolicyServerConfig(host='127.0.0.1', port=0))
                 await server.start()
 
@@ -73,12 +85,16 @@ async def main():
                         client.call('update_obs', obs=obs)
                         actions = client.call('get_action')
                         check_actions(actions, dimensions['arm_dim'], mode)
-                        client.call('update_obs_batch', obs=[obs, obs])
-                        batch = client.call('get_action_batch', obs=[0, 1])
+                        client.call('update_obs_batch', obs=[dict(obs, env_idx=4), dict(obs, env_idx=7)])
+                        batch = client.call('get_action_batch', obs=[7, 4])
                         assert len(batch) == 2
+                        assert len(client.call('get_action_batch')) == 2
+                        assert len(client.call('get_action_batch', obs=[7])) == 1
+                        assert client.call('get_action_batch', obs=[]) == []
                         for chunk in batch:
                             check_actions(chunk, dimensions['arm_dim'], mode)
                         client.call('reset')
+                        assert len(client.call('get_action_batch')) == 1
                         check_actions(client.call('get_action'), dimensions['arm_dim'], mode)
                         print(f'PASS {robot}/{mode}: observations, actions, batch, reset')
                 try:

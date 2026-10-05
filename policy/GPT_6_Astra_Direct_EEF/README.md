@@ -8,8 +8,4 @@ Fetch its agent runtime with `python scripts/fetch_policy.py GPT_6_Astra_Direct_
 
 A full episode requires the external evaluator, robot assets, and Cartesian planner expected by `inspect/`. The adapter still uses legacy evaluator configuration identifiers internally; these are functional dependencies, not a standalone Moravec simulator. Model-server startup alone does not validate LLM execution.
 
-See the [integration guide](../../INTEGRATION.md) for the shared interface. The simulation checks use that external evaluator; this remains an evaluator-integrated example, not a self-contained remote LLM service.
-
-## Validation
-
-On 2026-10-05, direct OpenAI `gpt-6-astra` completed four Isaac Sim trials with the existing Cartesian agent: Stack Bowls 0/2 successes (15% and 0% partial credit); Stack Blocks 1/2 successes (100% and 0%). Trials used layouts 0 and 1, medium reasoning effort, and a 40-call limit. They used 38, 39, 32, and 40 model calls respectively. All reached scored outcomes without provider failures; these small trials validate integration, not reliable task completion.
+See the [integration guide](../../INTEGRATION.md) for the shared interface. This example runs inside that evaluator; it is not a self-contained remote LLM service.

@@ -9,15 +9,15 @@ from typing import Any
 
 import numpy as np
 
-from XPolicyLab.policy.GPT_6_Astra_Direct_EEF.inspect.policy import (
+from moravec_policy.policy.GPT_6_Astra_Direct_EEF.inspect.policy import (
     InfrastructureFailure,
     JointAgentPolicy,
     MotionOutcome,
     RoboDojoActionSpec,
     _optional_float,
 )
-from XPolicyLab.policy.GPT_6_Astra_Direct_EEF.inspect.trace import named_state, source_revision
-from XPolicyLab.policy.GPT_6_Astra_Direct_EEF.inspect.types import (
+from moravec_policy.policy.GPT_6_Astra_Direct_EEF.inspect.trace import named_state, source_revision
+from moravec_policy.policy.GPT_6_Astra_Direct_EEF.inspect.types import (
     JOINT_CHANNELS,
     Action,
     ActionChunk,

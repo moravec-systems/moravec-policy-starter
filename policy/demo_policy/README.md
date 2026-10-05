@@ -1,6 +1,6 @@
 # Demo policy
 
-Minimal Moravec client/server example. It returns two synthetic zero-action steps with the configured joint or end-effector shapes. It ignores observation content and loads no checkpoint. Never send its actions to physical hardware.
+Minimal Moravec client/server example. It returns two synthetic zero-action steps with the configured joint or end-effector shapes. It tracks observation environment IDs for batch selection, but ignores image/state contents and loads no checkpoint. Never send its actions to physical hardware.
 
 From the repository root:
 

@@ -18,9 +18,24 @@ dependencies = [
 ]
 
 [tool.setuptools]
-py-modules = ["XPolicyLab"]
+include-package-data = false
+package-dir = { "moravec_policy" = "." }
+packages = [
+    "moravec_policy",
+    "moravec_policy.policy",
+    "moravec_policy.policy.demo_policy",
+    "moravec_policy.policy.GPT_6_Astra_Direct_EEF",
+    "moravec_policy.policy.GR00T_N17",
+    "moravec_policy.policy.GR00T_N17.configs",
+    "moravec_policy.policy.Pi_05",
+    "moravec_policy.policy.OpenWAM",
+    "moravec_policy.utils",
+    "client_server",
+    "client_server.tcp",
+    "client_server.ws",
+    "client_server.ws.protocol",
+]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["client_server*", "utils*"]
-exclude = ["policy*", "build*", "scripts*", "__pycache__*", "tests*"]
+[tool.setuptools.package-data]
+"moravec_policy.utils" = ["robot/*.json"]
+"*" = ["deploy.yml", "README.md"]

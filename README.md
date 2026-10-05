@@ -44,23 +44,9 @@ It starts a local WebSocket server, sends three synthetic RGB camera images and 
 
 The evaluator sends observations through the existing client; the policy implements `update_obs`, `get_action`, and `reset` (and batching where supported). The evaluator owns simulator or hardware control, task setup, and scoring.
 
-For now, preserve the upstream workspace layout: this checkout is `XPolicyLab/`, alongside the evaluator's `env_cfg/`. Runtime helpers read robot metadata from `env_cfg/robot/_robot_info.json`; when using YAM, copy the `yam` entry from this repository into that evaluator registry. Matching environment and simulator YAML files are also required. This repository alone does not supply a runnable YAM simulator.
+Keep the evaluator's `env_cfg/` beside this checkout; the checkout folder can have any name. Runtime helpers read robot metadata from `env_cfg/robot/_robot_info.json`; when using YAM, copy the `yam` entry from this repository into that evaluator registry. Matching environment and simulator YAML files are also required. This repository alone does not supply a runnable YAM simulator.
 
 The demo emits zero actions, which can command motion under absolute control. Use it only for offline or simulation wiring checks.
-
-## Validation and scope
-
-Validation on 2026-10-05 used an NVIDIA L40S for learned policies and simulation, and the direct OpenAI API for Astra. GR00T ran in LIBERO/MuJoCo; the other policies use an external Isaac Sim evaluator. These different task fixtures are integration checks, not comparable model rankings.
-
-- The hardware-free demo passes six transport checks.
-- GR00T: 4/4 successful episodes across two LIBERO tasks, plus a successful repeat using the included `scripts/validate_gr00t_libero.py`. A Mac client also retrieved real inference over an SSH tunnel.
-- π0.5: Stack Bowls 2/2 successes; Stack Blocks 0/2 successes (15% and 0% partial credit).
-- OpenWAM: Stack Bowls 2/2 successes; Stack Blocks 0/2 successes (15% partial credit each).
-- Astra: direct OpenAI API, Stack Bowls 0/2 successes; Stack Blocks 1/2 successes, with a 40-call limit per trial.
-
-GR00T, π0.5, and OpenWAM adapter outputs matched native inference on captured simulator observations. This checks conversion consistency; it does not imply every task succeeds. See each policy README for checkpoint revisions and settings. Raw traces, videos, weights, and credentials remain outside Git.
-
-YAM and FR3 physical operation remains unqualified. Next steps are matching trained checkpoints to those embodiments and validating their cameras, frames, joint order, and control behavior. Deployment packaging and any broader compatibility schema can be refined with NVIDIA. Training and full benchmark orchestration are outside this starter's scope.
 
 ## Development
 

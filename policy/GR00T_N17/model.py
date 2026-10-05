@@ -9,8 +9,8 @@ from typing import Any, Iterator
 
 import numpy as np
 
-from XPolicyLab.model_template import ModelTemplate
-from XPolicyLab.utils.checkpoint_resolver import resolve_checkpoint_root
+from moravec_policy.model_template import ModelTemplate
+from moravec_policy.utils.checkpoint_resolver import resolve_checkpoint_root
 
 _POLICY_DIR = Path(__file__).resolve().parent
 _GR00T_ROOT = _POLICY_DIR / "gr00t_n17"
@@ -214,7 +214,7 @@ def _extract_image(observation: dict[str, Any], candidate_names: list[str]) -> n
 
 
 def _to_rgb_hwc(image: np.ndarray) -> np.ndarray:
-    """XPolicyLab obs images are RGB; match LeRobot video training."""
+    """moravec_policy obs images are RGB; match LeRobot video training."""
     return _ensure_hwc_uint8(image)
 
 

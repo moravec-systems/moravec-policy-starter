@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from XPolicyLab.policy.GPT_6_Astra_Direct_EEF.inspect.embodiment_docs import (
+from moravec_policy.policy.GPT_6_Astra_Direct_EEF.inspect.embodiment_docs import (
     MOUNTING_HEADER,
     format_mounting_notes,
 )

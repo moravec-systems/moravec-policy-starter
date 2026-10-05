@@ -28,7 +28,7 @@ def main(deploy_cfg):
     protocol = deploy_cfg.get("protocol", "ws")
 
     # Instantiate model
-    model_class_func = eval_function_decorator(f"XPolicyLab.policy.{policy_name}.model", "Model")
+    model_class_func = eval_function_decorator(f"moravec_policy.policy.{policy_name}.model", "Model")
     model = model_class_func(deploy_cfg)
 
     if protocol == "ws":
@@ -37,7 +37,7 @@ def main(deploy_cfg):
         except ModuleNotFoundError as exc:
             if exc.name == "client_server":
                 # client_server.ws ships in this repo; make it importable even when
-                # XPolicyLab is not pip-installed in the current environment.
+                # moravec_policy is not pip-installed in the current environment.
                 import sys
                 repo_root = os.path.dirname(os.path.abspath(__file__))
                 if repo_root not in sys.path:
@@ -46,15 +46,15 @@ def main(deploy_cfg):
                     from client_server.ws.model_server import PolicyServer, PolicyServerConfig
                 except ModuleNotFoundError as dep_exc:
                     raise RuntimeError(
-                        "ws policy server requires XPolicyLab websocket dependencies "
+                        "ws policy server requires moravec_policy websocket dependencies "
                         f"(missing module: {dep_exc.name}). Install in the policy env with: "
-                        "pip install -e . from the XPolicyLab root."
+                        "pip install -e . from the moravec_policy root."
                     ) from dep_exc
             else:
                 raise RuntimeError(
-                    "ws policy server requires XPolicyLab websocket dependencies "
+                    "ws policy server requires moravec_policy websocket dependencies "
                     f"(missing module: {exc.name}). Install in the policy env with: "
-                    "pip install -e . from the XPolicyLab root."
+                    "pip install -e . from the moravec_policy root."
                 ) from exc
 
         server = PolicyServer(

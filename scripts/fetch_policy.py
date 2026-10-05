@@ -3,6 +3,7 @@
 Run with Python 3.12+: python scripts/fetch_policy.py GR00T_N17
 """
 import argparse
+import os
 from pathlib import Path
 import shutil
 import tarfile
@@ -19,13 +20,38 @@ SOURCES = {
 }
 
 
+def adapt_imports(root: Path):
+    """Retarget integration imports while retaining upstream licenses/notices."""
+    for directory, folders, files in os.walk(root):
+        folders[:] = [name for name in folders
+                      if not name.startswith('.') and name not in {'venv', '__pycache__'}]
+        for name in files:
+            if not name.endswith('.py'):
+                continue
+            path = Path(directory) / name
+            original = path.read_text(encoding='utf-8')
+            updated = original.replace('from XPolicyLab.', 'from moravec_policy.').replace(
+                'import XPolicyLab.', 'import moravec_policy.')
+            if updated != original:
+                path.write_text('# Moravec integration: package imports adapted.\n' + updated,
+                                encoding='utf-8')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('policy', choices=SOURCES)
+    parser.add_argument('--adapt-existing', action='store_true',
+                        help='Update package imports in an existing runtime without replacing it')
     parser.add_argument('--destination', type=Path, help='Optional external destination for verification')
     args = parser.parse_args()
     source = SOURCES[args.policy]
     destination = args.destination or Path(__file__).resolve().parents[1] / source
+    if args.adapt_existing:
+        if not destination.is_dir():
+            parser.error(f'{destination} is not an existing runtime directory')
+        adapt_imports(destination)
+        print(f'Updated integration imports in {destination}; existing source retained.')
+        return
     if destination.exists():
         parser.error(f'{destination} already exists; refusing to overwrite local code')
     if not hasattr(tarfile, 'data_filter'):
@@ -53,6 +79,7 @@ def main():
                 raise RuntimeError(f'Missing source directory in pinned archive: {source}')
             bundle.extractall(extracted, members=members, filter='data')
         root = extracted / f'XPolicyLab-{REVISION}' / source
+        adapt_imports(root)
         root.rename(destination)
     print(f'Fetched {args.policy} at {REVISION} into {destination}')
     print('Source only. Follow the policy README to install its runtime; weights are separate.')

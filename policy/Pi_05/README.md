@@ -13,13 +13,13 @@ GIT_LFS_SKIP_SMUDGE=1 uv sync --group lerobot
 uv pip install --python .venv/bin/python -e . -e ../../..
 ```
 
-Configure the checkpoint, training configuration, normalization assets, and environment in `deploy.yml`. The defaults are not a YAM-trained checkpoint. Source fetching is verified separately from GPU installation.
+Configure the checkpoint, training configuration, normalization assets, and environment in `deploy.yml`. The defaults are not a YAM-trained checkpoint.
 
 ## Serving
 
 Activate the model runtime, then use the shared Python server from the repository root as described in the [integration guide](../../INTEGRATION.md#remote-serving). Weights are separate downloads. Training and benchmark orchestration are outside this starter's scope.
 
-The [source manifest](../../scripts/fetch_policy.py) pins the exact implementation snapshot used by this adapter. The shared demo validates transport only; the checkpoint checks below exercise learned inference.
+The [source manifest](../../scripts/fetch_policy.py) pins the exact implementation snapshot used by this adapter.
 
 ## Concrete research fixture
 
@@ -37,5 +37,3 @@ hf download cjgogo/RoboDojo-pi05-checkpoints \
 ```
 
 Activate the model environment and set `XLA_PYTHON_CLIENT_PREALLOCATE=false` when sharing a GPU with simulation. `env_cfg_type: arx_x5` requires the corresponding evaluator configuration. The training config name and normalization asset ID are checkpoint-specific identifiers; do not rename them as branding.
-
-Native inference and adapter outputs matched exactly with fixed noise on both a synthetic input and a captured Isaac Sim observation (50 steps × 14 dimensions). In four Isaac Sim episodes on 2026-10-05, Stack Bowls passed 2/2; Stack Blocks passed 0/2 (15% and 0% partial credit). These small trials validate integration, not broad task reliability.
