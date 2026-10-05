@@ -56,4 +56,4 @@ Next: connect an evaluator, verify YAM observation/action semantics, and qualify
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the small adapter workflow and [THIRD_PARTY.md](THIRD_PARTY.md) for source attribution and licenses.
+See [INTEGRATION.md](INTEGRATION.md) for implementing and serving a policy, and [THIRD_PARTY.md](THIRD_PARTY.md) for source attribution and licenses.

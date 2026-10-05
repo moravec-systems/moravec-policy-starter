@@ -9,3 +9,5 @@ The model implementations retain their own attribution and licensing:
 - [OpenPI](policy/Pi_05/openpi/LICENSE) and [Gemma](policy/Pi_05/openpi/LICENSE_GEMMA.txt)
 
 Model weights have separate provider terms. Keeping an adapter in this repository does not grant access to weights or establish model/hardware compatibility. Original model README files and source notices are retained as technical references and attribution.
+
+Adapter source provenance also includes contributions by the RoboDojo Team and, for the Astra agent, [RoboProbe](https://github.com/RoboProbe/RoboProbe). Legacy benchmark names remain in functional imports, checkpoint identifiers, and model source documentation where changing them would alter compatibility. These are not Moravec validation claims.

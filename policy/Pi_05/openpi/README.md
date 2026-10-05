@@ -308,7 +308,7 @@ With torch.compile, inference speed is comparable between JAX and PyTorch.
 
 ## Troubleshooting
 
-We will collect common issues and their solutions here. If you encounter an issue, please check here first. If you can't find a solution, please file an issue on the repo (see [here](CONTRIBUTING.md) for guidelines).
+We will collect common issues and their solutions here. If you encounter an issue, please check here first. If you can't find a solution, please file an issue on the repo.
 
 | Issue                                     | Resolution                                                                                                                                                                                   |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

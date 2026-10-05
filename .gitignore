@@ -34,3 +34,6 @@ MUJOCO_LOG.TXT
 *.mp4
 
 .venv*/
+
+# Local editor settings
+**/.vscode/

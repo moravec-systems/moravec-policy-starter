@@ -55,3 +55,9 @@ python scripts/demo_roundtrip.py
 ```
 
 This creates a temporary evaluator layout and local WebSocket server. Six cases check joint/end-effector action shapes, observation transport, batching, and reset for the registered robot dimensions. It uses synthetic images and the zero-action demo; it neither runs model inference nor establishes simulation or physical task success. Never send the demo's zero actions to physical hardware.
+
+## Editing an adapter
+
+Copy `policy/demo_policy/` and set `policy_name` in `deploy.yml` to the new folder name. Implement preprocessing, inference, and action conversion in `model.py`. Document required cameras, state, units, frames, checkpoint, and trained embodiment. The evaluator owns simulation, physical control, and scoring.
+
+Use the Python server plus YAML as the primary serving entry point. Existing shell scripts mainly install dependencies, activate separate environments, and orchestrate evaluator processes; they are optional for serving an already-configured model directly. Their benchmark-specific paths remain compatibility details. Keep weights, credentials, and run outputs outside Git.
