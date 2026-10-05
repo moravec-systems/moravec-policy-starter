@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 
+from .client_server.wire import ObservationEnvelope
 from .contracts import (
     Decision,
     DeliveryManifest,
@@ -11,9 +12,8 @@ from .contracts import (
     PolicyManifest,
     RobotProfile,
 )
-from .policies import load_policy
+from .loader import load_policy
 from .provenance import tree_hash
-from .wire import ObservationEnvelope
 
 
 def main():
@@ -25,11 +25,21 @@ def main():
         if name == "serve":
             cmd.add_argument("--host", default="127.0.0.1")
             cmd.add_argument("--port", type=int, default=8000)
+    robot = sub.add_parser("robot")
+    robot.add_argument("definition", type=Path)
     schema = sub.add_parser("schemas")
     schema.add_argument("output", type=Path)
     digest = sub.add_parser("hash-checkpoint")
     digest.add_argument("directory", type=Path)
     args = parser.parse_args()
+    if args.command == "robot":
+        from .robots import load_robot
+
+        definition = load_robot(args.definition)
+        print(
+            json.dumps({**definition.model_dump(), "joint_action_dim": definition.joint_action_dim})
+        )
+        return
     if args.command == "hash-checkpoint":
         print(tree_hash(args.directory))
         return
@@ -58,7 +68,7 @@ def main():
         return
     import uvicorn
 
-    from .service import create_app
+    from .client_server.service import create_app
 
     token = os.getenv("MORAVEC_POLICY_TOKEN", "")
     if len(token) < 24:

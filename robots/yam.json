@@ -1,0 +1,20 @@
+{
+  "id": "yam",
+  "description": "YAM v1: six revolute arm joints and one commanded gripper degree of freedom per arm. Dual names are logical prefixes; gripper calibration remains deployment-specific.",
+  "arm_dim": [
+    6
+  ],
+  "ee_dim": [
+    1
+  ],
+  "joint_names": [
+    [
+      "joint1",
+      "joint2",
+      "joint3",
+      "joint4",
+      "joint5",
+      "joint6"
+    ]
+  ]
+}

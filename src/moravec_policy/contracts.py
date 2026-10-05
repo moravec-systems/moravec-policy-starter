@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 from typing import Annotated, Literal
-from urllib.parse import urlparse
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -19,67 +18,25 @@ class Contract(BaseModel):
 
 
 class ModelIdentity(Contract):
-    name: Slug
+    # Preserve upstream policy identifiers, including capitalization and underscores.
+    name: Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")]
     provider_model_id: str
     artifact_uri: str | None = None
     artifact_revision: str | None = None
     checkpoint_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
 
-class ModelEndpoint(Contract):
-    kind: Literal["http-llm"]
-    url: str
-    api: Literal["openai-responses"]
-    token_env: str
-    timeout_s: float = Field(gt=0, le=120)
-    max_calls: int = Field(gt=0, le=200)
-    max_output_tokens: int = Field(gt=0, le=32768)
-    reasoning_effort: Literal["low", "medium", "high"]
-
-    @model_validator(mode="after")
-    def safe_url(self):
-        p = urlparse(self.url)
-        if p.username or p.password or p.query or p.fragment:
-            raise ValueError("endpoint URL must not contain credentials/query/fragment")
-        if p.scheme not in {"http", "https"} or not p.hostname:
-            raise ValueError("model endpoint must be HTTP(S)")
-        return self
-
-
-class LocalModel(Contract):
-    kind: Literal["local-model"]
-    driver: Literal["gr00t", "openwam"]
-    checkpoint_path: str
-    binding_config: str
-
-
-class FixtureBackend(Contract):
-    kind: Literal["contract-fixture"]
-    output: Literal["joint-trajectory", "relative-pose"]
-
-
 class PolicyManifest(Contract):
-    schema_version: Literal["moravec.policy/v0.4"]
+    schema_version: Literal["moravec.policy/v0.5"]
     model: ModelIdentity
-    family: Literal["llm", "vla", "world-action", "fixture"]
+    family: Slug
     harness_version: str
+    entrypoint: str = Field(min_length=3)
+    config: dict = Field(default_factory=dict)
     required_camera_channels: dict[
         str, list[Literal["rgb", "depth", "intrinsics", "extrinsics"]]
     ] = Field(default_factory=dict)
     runtime_profile: Literal["isolated", "api-connected"]
-    backend: Annotated[ModelEndpoint | LocalModel | FixtureBackend, Field(discriminator="kind")]
-
-    @model_validator(mode="after")
-    def compatible(self):
-        if isinstance(self.backend, ModelEndpoint) and self.family != "llm":
-            raise ValueError("HTTP LLM backend requires llm family")
-        if isinstance(self.backend, FixtureBackend) and self.family != "fixture":
-            raise ValueError("fixtures cannot claim real-model identity")
-        if isinstance(self.backend, LocalModel):
-            expected = "vla" if self.backend.driver == "gr00t" else "world-action"
-            if self.family != expected:
-                raise ValueError("model driver/family mismatch")
-        return self
 
 
 class Joint(Contract):

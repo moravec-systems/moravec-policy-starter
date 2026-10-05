@@ -7,7 +7,10 @@ COPY src ./src
 RUN pip install --no-cache-dir --require-hashes -r requirements.lock \
     && pip install --no-cache-dir --no-deps . \
     && useradd --uid 10001 --create-home policy
-COPY examples ./examples
+COPY policies ./policies
+COPY robots ./robots
+COPY licenses ./licenses
+COPY THIRD_PARTY_NOTICES.md ./
 USER policy
 EXPOSE 8000
-CMD ["moravec-policy", "serve", "examples/contract-fixture/policy.json", "--host", "0.0.0.0"]
+CMD ["moravec-policy", "serve", "policies/contract-fixture/policy.json", "--host", "0.0.0.0"]

@@ -1,0 +1,29 @@
+{
+  "status": "requires-qualification",
+  "profile_id": "replace-with-station-profile",
+  "profile_revision": "replace-with-calibration-version",
+  "action_semantics": "absolute-joint-position",
+  "embodiment_tag": "NEW_EMBODIMENT",
+  "camera_bindings": {
+    "head_camera": "overview"
+  },
+  "language_key": "task",
+  "action_bindings": {
+    "action": [
+      "shoulder",
+      "elbow"
+    ]
+  },
+  "timestep_s": 0.02,
+  "observation_period_s": 0.02,
+  "execution_horizon": 1,
+  "state_components": [
+    {
+      "source": "joint_positions",
+      "names": [
+        "shoulder",
+        "elbow"
+      ]
+    }
+  ]
+}

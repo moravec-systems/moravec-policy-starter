@@ -4,12 +4,11 @@ from pathlib import Path
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from policy_examples import FixturePolicy, LLMHarness
 from pydantic import ValidationError
 
+from moravec_policy.client_server.service import create_app
 from moravec_policy.contracts import Decision, Observation, PolicyManifest, RobotProfile
-from moravec_policy.llm import LLMHarness
-from moravec_policy.policies import FixturePolicy
-from moravec_policy.service import create_app
 from moravec_policy.validation import validate_decision, validate_observation
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,17 +52,17 @@ def obs(profile):
 @pytest.fixture
 def client(profile):
     manifest = PolicyManifest.model_validate_json(
-        (ROOT / "examples/contract-fixture/policy.json").read_text()
+        (ROOT / "policies/contract-fixture/policy.json").read_text()
     )
     app = create_app(FixturePolicy("joint-trajectory"), manifest, TOKEN)
     return TestClient(app, headers={"Authorization": "Bearer " + TOKEN})
 
 
-@pytest.mark.parametrize("path", list((ROOT / "examples").glob("*/policy.json")))
+@pytest.mark.parametrize("path", list((ROOT / "policies").rglob("policy.json")))
 def test_examples(path):
     manifest = PolicyManifest.model_validate_json(path.read_text())
-    assert manifest.model.name == manifest.model.name.lower()
-    assert "_" not in manifest.model.name
+    policy_folder = path.parent.parent if path.parent.name == "libero" else path.parent
+    assert manifest.model.name == policy_folder.name
 
 
 @pytest.mark.parametrize(
@@ -121,7 +120,7 @@ def test_executor_rejects_without_actuation(profile, obs, issue):
 
 
 def test_lifecycle_feedback_and_reset(client, obs, profile):
-    from moravec_policy.wire import observation_to_wire, pack, unpack
+    from moravec_policy.client_server.wire import observation_to_wire, pack, unpack
 
     with client.websocket_connect("/policy") as ws:
         counter = 0
@@ -178,7 +177,7 @@ def test_auth(client):
 
 def llm_config():
     return PolicyManifest.model_validate_json(
-        (ROOT / "examples/gpt-6-astra/policy.json").read_text()
+        (ROOT / "policies/gpt-6-astra/policy.json").read_text()
     )
 
 
@@ -303,11 +302,11 @@ def test_isolated_blocks_public_llm():
         LLMHarness(cfg, token=TOKEN)
 
 
-@pytest.mark.parametrize("name", ["gr00t-n1.7-3b", "openwam-alpha-pretrain-foundation-model"])
+@pytest.mark.parametrize("name", ["GR00T_N17", "OpenWAM"])
 def test_native_checkpoints_fail_closed(name):
-    from moravec_policy.policies import load_policy
+    from moravec_policy.loader import load_policy
 
-    path = ROOT / "examples" / name / "policy.json"
+    path = ROOT / "policies" / name / "policy.json"
     with pytest.raises(ValueError, match="qualification"):
         load_policy(PolicyManifest.model_validate_json(path.read_text()), path)
 
@@ -323,7 +322,7 @@ def test_binary_uncertainty():
 
 
 def test_strict_tool_schema():
-    from moravec_policy.llm import tool_definitions
+    from policy_examples import tool_definitions
 
     def check(node):
         if isinstance(node, dict):
@@ -357,7 +356,7 @@ def infer(policy, obs, profile):
 
 
 def test_multiple_updates_and_duplicate_requests(client, obs, profile):
-    from moravec_policy.wire import observation_to_wire, pack, unpack
+    from moravec_policy.client_server.wire import observation_to_wire, pack, unpack
 
     with client.websocket_connect("/policy") as ws:
 
@@ -387,7 +386,7 @@ def test_multiple_updates_and_duplicate_requests(client, obs, profile):
 
 
 def test_missing_feedback_faults_session(client, obs, profile):
-    from moravec_policy.wire import observation_to_wire, pack, unpack
+    from moravec_policy.client_server.wire import observation_to_wire, pack, unpack
 
     with client.websocket_connect("/policy") as ws:
 

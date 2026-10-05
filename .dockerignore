@@ -5,5 +5,10 @@
 !requirements.lock
 !src/
 !src/**
-!examples/
-!examples/**
+!policies/
+!policies/**
+!robots/
+!robots/**
+!THIRD_PARTY_NOTICES.md
+!licenses/
+!licenses/**

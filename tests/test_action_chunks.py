@@ -5,9 +5,9 @@ import pytest
 from pydantic import ValidationError
 
 from moravec_policy.action_adapter import decode_actions
+from moravec_policy.client_server.wire import pack, unpack
 from moravec_policy.contracts import ActionChunk, Decision, Pose
 from moravec_policy.geometry import resolve_pose_chunk
-from moravec_policy.wire import pack, unpack
 
 
 def pose(x):

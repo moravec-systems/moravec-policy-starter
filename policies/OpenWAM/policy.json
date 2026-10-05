@@ -1,0 +1,39 @@
+{
+  "schema_version": "moravec.policy/v0.5",
+  "harness_version": "moravec-0.5.0",
+  "model": {
+    "name": "OpenWAM",
+    "provider_model_id": "OpenWAM/OpenWAM-Alpha-Pretrain-Foundation-Model",
+    "artifact_uri": "hf://OpenWAM/OpenWAM-Alpha-Pretrain-Foundation-Model"
+  },
+  "family": "world-action",
+  "runtime_profile": "isolated",
+  "required_camera_channels": {
+    "overview": [
+      "rgb"
+    ]
+  },
+  "entrypoint": "policy.py:Model",
+  "config": {
+    "checkpoint_path": "/weights/openwam-alpha-pretrain-foundation-model",
+    "binding_config": "bindings.json",
+    "device": "cuda",
+    "inference_overrides": {
+      "inference": {
+        "denoise_steps": 10,
+        "denoise_mode": "sync",
+        "inference_mode": "sync",
+        "inference_horizon": null
+      },
+      "optimization": {
+        "decode_video": false,
+        "dit_cache": {
+          "enabled": false
+        },
+        "compile": {
+          "enabled": false
+        }
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # Moravec policy starter
 
-A small container interface for evaluating a model in simulation or at a robot station. The model adapter handles inference; Moravec owns task execution and scoring. This is a v0.4 prototype, not a qualified hardware deployment.
+A small container interface for evaluating a model in simulation or at a robot station. The model adapter handles inference; Moravec owns task execution and scoring. This is a prototype, not a qualified hardware deployment.
 
 ```text
 Station ↔ WebSocket / MessagePack ↔ Policy container
@@ -26,11 +26,35 @@ uv run python sim/validate.py --live-astra --output runs/astra-live
 
 This makes at most two paid calls for one episode using `gpt-6-astra` at `https://api.openai.com/v1/responses`. HTTP is only the model-provider connection. Astra's policy container uses the same station protocol as the other models. No model substitution. See [validation status](VALIDATION.md) for what has actually run.
 
-## Implement an adapter
+## Add or customize a policy
 
-Use `configure(profile)` once per episode, `reset()` to clear state, `update_obs(observation)` to ingest observations, and `get_action()` to return an action chunk. Observation updates do not trigger inference, so a temporal policy can accumulate history first. [The fixture](src/moravec_policy/policies.py) is the smallest example; [native.py](src/moravec_policy/native.py) demonstrates checkpoint conversion. Batch methods are declared but explicitly unsupported; use isolated replicas for parallel episodes.
+```text
+policies/<model-name>/    policy.py, policy.json, Dockerfile, optional bindings
+robots/                  reusable embodiment definitions, including YAM and dual YAM
+src/moravec_policy/
+  client_server/         shared client, default server and binary encoding
+  lifecycle.py           policy interface
+  contracts.py           shared observations/actions, independent of model SDKs
+sim/                     MuJoCo contract test and real-checkpoint LIBERO runner
+tests/                   policy, transport and robot-definition compatibility
+```
 
-Serve an implementation through [create_app](src/moravec_policy/service.py). The service owns episode IDs, request IDs, decision IDs, feedback matching and validation. The adapter returns actions, not scores or trial metadata.
+Policy IDs preserve upstream names (`GR00T_N17`, `OpenWAM`); checkpoint-specific examples live in their `libero/` subfolders. Provider model IDs, artifact revisions, and checkpoint hashes distinguish the actual weights.
+
+Each folder owns its SDK, preprocessing, observation history, inference settings, action conversion and container recipe. `policy.json` declares `entrypoint: "policy.py:Model"` (or an installed `package.module:factory`) and a policy-owned `config` object. The callable receives `(manifest, manifest_path)` and returns a `Policy`. Adding a model never requires a core driver or model-family registration. Entrypoints are trusted container code, not network-request fields.
+
+Use `configure(profile)` once per episode, `reset()` to clear state, `update_obs(observation)` to ingest observations, and `get_action()` to return an action chunk. Observation updates do not trigger inference. Start with the [fixture](policies/contract-fixture/policy.py), [Astra](policies/gpt-6-astra/policy.py), [GR00T](policies/GR00T_N17/policy.py), or [OpenWAM](policies/OpenWAM/policy.py) implementation.
+
+```sh
+uv run moravec-policy serve policies/gpt-6-astra/policy.json --host 127.0.0.1 --port 8000
+uv run moravec-policy robot robots/dual-yam.json
+```
+
+The default [server](src/moravec_policy/client_server/service.py) handles authentication, episode/request IDs and boundary validation. You may replace it with your own server/container implementing the same wire interface; transport conformance is required in either case. The evaluator retains execution and scoring. The default server supports one episode at a time and advertises `batching: false`.
+
+Robot definitions provide arm/gripper dimensions and known joint ordering. Read one with `load_robot(path)` from `moravec_policy.robots`; use it in a policy's embodiment-specific conversion. YAM has six arm joints plus one commanded gripper dimension; `dual-yam` has two of each. These files do not supply calibration, controllers or trained checkpoint support. Runtime camera/frame information still arrives in the existing robot profile; there is no separate stations directory. Reference dimensions and attribution are documented in [third-party notices](THIRD_PARTY_NOTICES.md).
+
+Submission manifests use v0.5 (`entrypoint` + policy-owned `config`, replacing `backend`). The observation/action wire protocol remains v0.4.
 
 ## Interface
 
@@ -58,12 +82,14 @@ The station validates expiry using its current clock, plans and executes only th
 
 ## Model examples and submission
 
-- [gpt-6-astra](examples/gpt-6-astra): Responses API tools become absolute pose chunks; reasoning/tool history resets between episodes.
-- [gr00t-n1.7-3b](examples/gr00t-n1.7-3b): native SDK template with temporal observations and explicit pose/joint bindings. Requires the correct CUDA runtime and checkpoint.
-- [openwam-alpha-pretrain-foundation-model](examples/openwam-alpha-pretrain-foundation-model): native world-action template; requires checkpoint adaptation. Video-only world models need a separate action-selection planner.
+- [gpt-6-astra](policies/gpt-6-astra): Responses API tools become absolute pose chunks; reasoning/tool history resets between episodes.
+- [GR00T_N17 (LIBERO)](policies/GR00T_N17/libero): task-trained NVIDIA example with pinned weights, an offline GPU container, and a matching LIBERO adapter.
+- [OpenWAM (LIBERO)](policies/OpenWAM/libero): task-trained world-action model using the same simulation client; GPU container qualification remains separate.
+- [GR00T_N17](policies/GR00T_N17): native SDK template with temporal observations and explicit pose/joint bindings. Requires the correct CUDA runtime and checkpoint.
+- [OpenWAM](policies/OpenWAM): native world-action template; requires checkpoint adaptation. Video-only world models need a separate action-selection planner.
 
 Bind camera names, state ordering, normalization, observation cadence, rotation representation, action timestep and execution horizon from actual checkpoint metadata. Rotation adapters cover WXYZ, rotation vectors, XYZ Euler radians, and explicitly declared row/column 6D rotations. The SDK must supply denormalized outputs; gripper fractions must already match the declared convention. Placeholder bindings remain `requires-qualification` and refuse inference.
 
-`docker compose up --build` serves the fixture after `MORAVEC_POLICY_TOKEN` is set. The CPU image has no GPU SDKs or weights. Build a separate pinned model image for GPU inference. Isolated deployments have no internet; API-connected models use a separate approved network profile.
+`docker compose up --build` serves the fixture after `MORAVEC_POLICY_TOKEN` is set. Build the shared CPU base with `docker build -t moravec-policy-base:local .`, then select a policy recipe with `docker build -f policies/gpt-6-astra/Dockerfile -t moravec-astra .`. For a GPU policy, build the shared base using `--build-arg BASE_IMAGE=<pinned-image-with-that-policy-SDK>`, then use that base in its policy Dockerfile. The checked-in CPU base has no GPU SDKs or weights. The GR00T LIBERO folder provides its own pinned GPU recipe and licensed-weight preparation command; other GPU recipes remain templates unless the validation report explicitly qualifies them. Isolated deployments have no internet; API-connected models use a separate approved network profile.
 
 Submit the image digest, policy manifest, checkpoint/binding hashes, compute requirements, and executed validation report. Keep credentials, weights and private evaluation results out of Git. A customer or coding agent should implement the adapter against this fixed interface, preserving the evaluator, task assets, seeds and scoring rules. Real checkpoint simulation qualification comes before physical station qualification.

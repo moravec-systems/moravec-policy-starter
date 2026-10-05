@@ -6,6 +6,13 @@ import numpy as np
 import pytest
 
 from moravec_policy.action_adapter import decode_actions
+from moravec_policy.client_server.wire import (
+    ObservationEnvelope,
+    observation_from_wire,
+    observation_to_wire,
+    pack,
+    unpack,
+)
 from moravec_policy.contracts import (
     ActionChunk,
     Camera,
@@ -17,13 +24,6 @@ from moravec_policy.contracts import (
 )
 from moravec_policy.geometry import compose_pose, resolve_pose_chunk
 from moravec_policy.validation import validate_channels, validate_decision
-from moravec_policy.wire import (
-    ObservationEnvelope,
-    observation_from_wire,
-    observation_to_wire,
-    pack,
-    unpack,
-)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -162,7 +162,7 @@ def test_metadata_cannot_override_payload():
 
 
 def test_batching_is_explicitly_unsupported():
-    from moravec_policy.policies import FixturePolicy
+    from policy_examples import FixturePolicy
 
     policy = FixturePolicy("joint-trajectory")
     policy.configure(profile())
@@ -216,9 +216,15 @@ def test_joint_and_gripper_shared_step():
 
 
 def test_native_history_shapes_and_reset():
+    from pathlib import Path
     from types import SimpleNamespace
 
-    from moravec_policy.native import NativeModelPolicy
+    from moravec_policy.loader import load_entrypoint
+
+    NativeModelPolicy = load_entrypoint(
+        "policy.py:Model",
+        Path(__file__).resolve().parents[1] / "policies/GR00T_N17/policy.json",
+    )
 
     seen = []
 
@@ -233,7 +239,6 @@ def test_native_history_shapes_and_reset():
     policy = NativeModelPolicy.__new__(NativeModelPolicy)
     policy.model = Model()
     policy.history_length = 2
-    policy.manifest = SimpleNamespace(backend=SimpleNamespace(driver="gr00t"))
     policy.modalities = {
         "video": SimpleNamespace(delta_indices=[-1, 0]),
         "state": SimpleNamespace(delta_indices=[-1, 0]),

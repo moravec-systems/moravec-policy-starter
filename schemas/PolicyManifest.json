@@ -1,130 +1,10 @@
 {
   "$defs": {
-    "FixtureBackend": {
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "const": "contract-fixture",
-          "title": "Kind",
-          "type": "string"
-        },
-        "output": {
-          "enum": [
-            "joint-trajectory",
-            "relative-pose"
-          ],
-          "title": "Output",
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind",
-        "output"
-      ],
-      "title": "FixtureBackend",
-      "type": "object"
-    },
-    "LocalModel": {
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "const": "local-model",
-          "title": "Kind",
-          "type": "string"
-        },
-        "driver": {
-          "enum": [
-            "gr00t",
-            "openwam"
-          ],
-          "title": "Driver",
-          "type": "string"
-        },
-        "checkpoint_path": {
-          "title": "Checkpoint Path",
-          "type": "string"
-        },
-        "binding_config": {
-          "title": "Binding Config",
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind",
-        "driver",
-        "checkpoint_path",
-        "binding_config"
-      ],
-      "title": "LocalModel",
-      "type": "object"
-    },
-    "ModelEndpoint": {
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "const": "http-llm",
-          "title": "Kind",
-          "type": "string"
-        },
-        "url": {
-          "title": "Url",
-          "type": "string"
-        },
-        "api": {
-          "const": "openai-responses",
-          "title": "Api",
-          "type": "string"
-        },
-        "token_env": {
-          "title": "Token Env",
-          "type": "string"
-        },
-        "timeout_s": {
-          "exclusiveMinimum": 0,
-          "maximum": 120,
-          "title": "Timeout S",
-          "type": "number"
-        },
-        "max_calls": {
-          "exclusiveMinimum": 0,
-          "maximum": 200,
-          "title": "Max Calls",
-          "type": "integer"
-        },
-        "max_output_tokens": {
-          "exclusiveMinimum": 0,
-          "maximum": 32768,
-          "title": "Max Output Tokens",
-          "type": "integer"
-        },
-        "reasoning_effort": {
-          "enum": [
-            "low",
-            "medium",
-            "high"
-          ],
-          "title": "Reasoning Effort",
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind",
-        "url",
-        "api",
-        "token_env",
-        "timeout_s",
-        "max_calls",
-        "max_output_tokens",
-        "reasoning_effort"
-      ],
-      "title": "ModelEndpoint",
-      "type": "object"
-    },
     "ModelIdentity": {
       "additionalProperties": false,
       "properties": {
         "name": {
-          "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
           "title": "Name",
           "type": "string"
         },
@@ -181,7 +61,7 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "moravec.policy/v0.4",
+      "const": "moravec.policy/v0.5",
       "title": "Schema Version",
       "type": "string"
     },
@@ -189,18 +69,23 @@
       "$ref": "#/$defs/ModelIdentity"
     },
     "family": {
-      "enum": [
-        "llm",
-        "vla",
-        "world-action",
-        "fixture"
-      ],
+      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$",
       "title": "Family",
       "type": "string"
     },
     "harness_version": {
       "title": "Harness Version",
       "type": "string"
+    },
+    "entrypoint": {
+      "minLength": 3,
+      "title": "Entrypoint",
+      "type": "string"
+    },
+    "config": {
+      "additionalProperties": true,
+      "title": "Config",
+      "type": "object"
     },
     "required_camera_channels": {
       "additionalProperties": {
@@ -225,28 +110,6 @@
       ],
       "title": "Runtime Profile",
       "type": "string"
-    },
-    "backend": {
-      "discriminator": {
-        "mapping": {
-          "contract-fixture": "#/$defs/FixtureBackend",
-          "http-llm": "#/$defs/ModelEndpoint",
-          "local-model": "#/$defs/LocalModel"
-        },
-        "propertyName": "kind"
-      },
-      "oneOf": [
-        {
-          "$ref": "#/$defs/ModelEndpoint"
-        },
-        {
-          "$ref": "#/$defs/LocalModel"
-        },
-        {
-          "$ref": "#/$defs/FixtureBackend"
-        }
-      ],
-      "title": "Backend"
     }
   },
   "required": [
@@ -254,8 +117,8 @@
     "model",
     "family",
     "harness_version",
-    "runtime_profile",
-    "backend"
+    "entrypoint",
+    "runtime_profile"
   ],
   "title": "PolicyManifest",
   "type": "object"

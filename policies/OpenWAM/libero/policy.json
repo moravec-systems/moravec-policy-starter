@@ -1,0 +1,27 @@
+{
+  "schema_version": "moravec.policy/v0.5",
+  "harness_version": "moravec-0.5.0",
+  "model": {
+    "name": "OpenWAM",
+    "provider_model_id": "OpenWAM/OpenWAM-Alpha-Sim-LIBERO",
+    "artifact_uri": "hf://OpenWAM/OpenWAM-Alpha-Sim-LIBERO",
+    "artifact_revision": "110b07e4d5581c81520a77419cbb0e9371df231b",
+    "checkpoint_sha256": "6af79b005bace7fce5679c5464e86c0767b3a868de1fe7f01f4150ca170a2708"
+  },
+  "family": "world-action-model",
+  "entrypoint": "policy.py:Model",
+  "config": {
+    "checkpoint_path": "/weights/openwam-alpha-sim-libero",
+    "binding_config": "bindings.json",
+    "device": "cuda"
+  },
+  "required_camera_channels": {
+    "overview": [
+      "rgb"
+    ],
+    "wrist": [
+      "rgb"
+    ]
+  },
+  "runtime_profile": "isolated"
+}

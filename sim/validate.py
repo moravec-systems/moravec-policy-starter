@@ -20,7 +20,8 @@ import numpy as np
 import uvicorn
 from fastapi import FastAPI, Request
 
-from moravec_policy.client import RemotePolicy
+from moravec_policy.client_server.client import RemotePolicy
+from moravec_policy.client_server.service import create_app
 from moravec_policy.contracts import (
     CartesianGoal,
     Feedback,
@@ -29,12 +30,14 @@ from moravec_policy.contracts import (
     RobotProfile,
     Stop,
 )
-from moravec_policy.llm import LLMHarness
-from moravec_policy.policies import FixturePolicy
-from moravec_policy.service import create_app
+from moravec_policy.loader import load_entrypoint
 from moravec_policy.validation import validate_decision
 
 ROOT = Path(__file__).resolve().parents[1]
+LLMHarness = load_entrypoint("policy.py:LLMHarness", ROOT / "policies/gpt-6-astra/policy.json")
+FixturePolicy = load_entrypoint(
+    "policy.py:FixturePolicy", ROOT / "policies/contract-fixture/policy.json"
+)
 TOKEN = "simulation-conformance-token-only"
 
 
@@ -145,7 +148,7 @@ def main():
         parser.error("OPENAI_API_KEY is required; no API calls made")
     args.output.mkdir(parents=True, exist_ok=True)
     profile = RobotProfile.model_validate_json((ROOT / "sim/profile.json").read_text())
-    base = json.loads((ROOT / "examples/contract-fixture/policy.json").read_text())
+    base = json.loads((ROOT / "policies/contract-fixture/policy.json").read_text())
     results = []
     events = []
     frames = []
@@ -161,18 +164,18 @@ def main():
             ):
                 if mode in {"joint-trajectory", "relative-pose"}:
                     cfg = json.loads(json.dumps(base))
-                    cfg["backend"]["output"] = mode
+                    cfg["config"]["output"] = mode
                     manifest = PolicyManifest.model_validate(cfg)
                     policy = FixturePolicy(mode)
                 else:
-                    cfg = json.loads((ROOT / "examples/gpt-6-astra/policy.json").read_text())
+                    cfg = json.loads((ROOT / "policies/gpt-6-astra/policy.json").read_text())
                     if not args.live_astra:
                         cfg["model"] = {
                             "name": "contract-fixture-llm",
                             "provider_model_id": "contract-fixture-llm",
                         }
-                        cfg["backend"]["url"] = model_url + "/v1/responses"
-                    cfg["backend"]["max_calls"] = 2
+                        cfg["config"]["url"] = model_url + "/v1/responses"
+                    cfg["config"]["max_calls"] = 2
                     manifest = PolicyManifest.model_validate(cfg)
                     policy = LLMHarness(manifest, token=None if args.live_astra else TOKEN)
 
