@@ -2,9 +2,8 @@
 
 **Contributor:** OpenWAM Contributors | **Paper:** An Open, Modular Exploration Towards Systematic World–Action Model Pretraining | **arXiv:** [2609.07398](https://arxiv.org/abs/2609.07398) | **Original code:** https://github.com/OpenWAM-Official/OpenWAM
 
-`OpenWAM` adapts the OpenWAM world-action model to XPolicyLab/RoboDojo (`arx_x5`, absolute EE control, batched inference). Integration scripts live at this directory level; the vendored upstream implementation lives in `OpenWAM/`. Official OpenWAM does not expose batch inference; the vendored tree adds `generate_batch` for `eval_batch: true`.
+`OpenWAM` adapts the OpenWAM world-action model to Moravec evaluation (`arx_x5`, absolute EE control, batched inference). Integration scripts live at this directory level; the vendored upstream implementation lives in `OpenWAM/`. Official OpenWAM does not expose batch inference; the vendored tree adds `generate_batch` for `eval_batch: true`.
 
-Shared conventions — argument meanings, checkpoint naming, split-machine deployment, `EVAL_ENV_TYPE` — are documented in the [XPolicyLab README](../../UPSTREAM_README.md). Official results: [RoboDojo LeaderBoard](https://robodojo-benchmark.com/LeaderBoard).
 
 ## Installation
 
@@ -19,7 +18,7 @@ cd XPolicyLab/policy/OpenWAM
 bash install.sh
 ```
 
-`install.sh` editable-installs XPolicyLab and the vendored `OpenWAM/` package. Cosmos-Predict2.5 extras are not required for the RoboDojo Wan checkpoint.
+`install.sh` editable-installs the Moravec policy package and the vendored `OpenWAM/` package. Cosmos-Predict2.5 extras are not required for the RoboDojo Wan checkpoint.
 
 ## Data Processing
 
@@ -85,7 +84,7 @@ bash eval.sh RoboDojo stack_bowls New_OpenWAM_RoboDojo_SFT_60k arx_x5 ee 0 0 0 \
   <policy_conda_env> <eval_env_conda_env>
 ```
 
-`EVAL_ENV_TYPE=debug` runs the offline wiring check (no simulator); leave it unset or set `EVAL_ENV_TYPE=sim` for RoboDojo simulation. `ckpt_name` may be the short directory name, the full 5-tuple run directory, or an absolute path. Override with `OPENWAM_CKPT_DIR`. For split-machine deployment via `setup_eval_policy_server.sh` / `setup_eval_env_client.sh`, follow the [Deployment Flow](../../UPSTREAM_README.md#-deployment-flow).
+`EVAL_ENV_TYPE=debug` runs the offline wiring check (no simulator); leave it unset or set `EVAL_ENV_TYPE=sim` for RoboDojo simulation. `ckpt_name` may be the short directory name, the full 5-tuple run directory, or an absolute path. Override with `OPENWAM_CKPT_DIR`. For split-machine deployment via `setup_eval_policy_server.sh` / `setup_eval_env_client.sh`, follow the [Deployment Flow](../../INTEGRATION.md#remote-serving).
 
 ## Configuration
 

@@ -4,7 +4,6 @@
 
 Evaluation-only, RGB-only GPT-6 Astra agent. The model (`L4_INSPECT_PLANNER=astra`, model id `gpt-6-astra`) calls one `move_eef` tool that names world-frame grasp-point dimensions. RoboDojo's local Cartesian planner turns those poses into time-aligned joint paths. There is no VLA checkpoint and no training entry. Shared Inspect runtime lives in `inspect/`.
 
-Shared conventions — argument meanings, checkpoint naming, split-machine deployment, `EVAL_ENV_TYPE` — are documented in the [XPolicyLab README](../../UPSTREAM_README.md). Official results: [RoboDojo LeaderBoard](https://robodojo-benchmark.com/LeaderBoard).
 
 ## Installation
 

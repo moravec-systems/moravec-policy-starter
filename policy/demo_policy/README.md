@@ -1,14 +1,13 @@
 # demo_policy
 
-**Contributor:** RoboDojo Team | **Paper:** Not applicable — XPolicyLab demo adapter | **arXiv:** Not applicable | **Original code:** Not applicable
+**Contributor:** RoboDojo Team | **Paper:** Not applicable — Moravec demo adapter | **arXiv:** Not applicable | **Original code:** Not applicable
 
 `demo_policy` is the minimal reference adapter for checking policy-server / environment-client wiring. It returns zero actions with the correct action keys and dimensions; it does not train a real model or load a checkpoint. `process_data.sh` and `train.sh` are stubs that only demonstrate the standard naming conventions.
 
-Shared conventions — argument meanings, checkpoint naming, split-machine deployment, `EVAL_ENV_TYPE` — are documented in the [XPolicyLab README](../../UPSTREAM_README.md). Official results: [RoboDojo LeaderBoard](https://robodojo-benchmark.com/LeaderBoard).
 
 ## Installation
 
-Installs XPolicyLab in editable mode so the policy server can import `XPolicyLab.policy.demo_policy` and the websocket modules:
+Installs the Moravec policy package in editable mode so the policy server can import `XPolicyLab.policy.demo_policy` and the websocket modules:
 
 ```bash
 cd XPolicyLab/policy/demo_policy
@@ -51,7 +50,7 @@ bash eval.sh <bench_name> <task_name> <ckpt_name> <env_cfg_type> <action_type> <
 EVAL_ENV_TYPE=debug bash eval.sh RoboDojo stack_bowls demo arx_x5 joint 0 0 0 <policy_conda_env> <eval_env_conda_env>
 ```
 
-`EVAL_ENV_TYPE=debug` runs the offline wiring check (no simulator); leave it unset or set `EVAL_ENV_TYPE=sim` for RoboDojo simulation. For split-machine deployment via `setup_eval_policy_server.sh` / `setup_eval_env_client.sh`, follow the [Deployment Flow](../../UPSTREAM_README.md#-deployment-flow).
+`EVAL_ENV_TYPE=debug` runs the offline wiring check (no simulator); leave it unset or set `EVAL_ENV_TYPE=sim` for RoboDojo simulation. For split-machine deployment via `setup_eval_policy_server.sh` / `setup_eval_env_client.sh`, follow the [Deployment Flow](../../INTEGRATION.md#remote-serving).
 
 ## Notes
 

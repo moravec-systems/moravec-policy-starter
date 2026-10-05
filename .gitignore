@@ -1,9 +1,8 @@
 **/__pycache__/**
 **/*.egg-info/
-.cursor/*
-!.cursor/skills
-.claude/*
-!.claude/skills
+.cursor/
+.claude/
+.agents/
 **/.venv/**
 **/checkpoints/**
 train_out/

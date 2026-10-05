@@ -2,9 +2,8 @@
 
 **Contributor:** RoboDojo Team | **Paper:** GR00T N1 / N1.5 open foundation model reports | **arXiv:** TBD | **Original code:** https://github.com/NVIDIA/Isaac-GR00T
 
-`GR00T_N17` adapts the NVIDIA Isaac GR00T N1.7 foundation model (base model `nvidia/GR00T-N1.7-3B`) to XPolicyLab/RoboDojo. Integration scripts live at this directory level; the vendored upstream implementation lives in `gr00t_n17/`, with adapter modality configs in `configs/` and helper scripts in `scripts/`.
+`GR00T_N17` adapts the NVIDIA Isaac GR00T N1.7 foundation model (base model `nvidia/GR00T-N1.7-3B`) to Moravec evaluation. Integration scripts live at this directory level; the vendored upstream implementation lives in `gr00t_n17/`, with adapter modality configs in `configs/` and helper scripts in `scripts/`.
 
-Shared conventions — argument meanings, checkpoint naming, split-machine deployment, `EVAL_ENV_TYPE` — are documented in the [XPolicyLab README](../../UPSTREAM_README.md). Official results: [RoboDojo LeaderBoard](https://robodojo-benchmark.com/LeaderBoard).
 
 ## Installation
 
@@ -30,7 +29,7 @@ bash process_data.sh RoboDojo stack_bowls arx_x5 joint
 GR00T_SRC_DATASET=RoboDojo_sim_arx-x5_50ep bash process_data.sh RoboDojo stack_bowls_50ep arx_x5 joint
 ```
 
-The source dataset defaults to `RoboDojo_sim_arx-x5_v30` for `arx_x5` — a prepared LeRobot v3.0 export with the official keys ([Official LeRobot conversion](../../UPSTREAM_README.md#official-lerobot-conversion)); `process_data.sh` copies it and downgrades v3.0 to v2.1 with upstream LeRobot tooling, without touching keys or images. Other `env_cfg_type` values require setting `GR00T_SRC_DATASET` explicitly. `expert_data_num` is accepted for compatibility only — it is logged but not applied for episode subsetting; to ablate data scale, point `GR00T_SRC_DATASET` at a subset dataset and use a distinct `ckpt_name`.
+The source dataset defaults to `RoboDojo_sim_arx-x5_v30` for `arx_x5` — a prepared LeRobot v3.0 export with the official keys ([Official LeRobot conversion](../../INTEGRATION.md#official-lerobot-conversion)); `process_data.sh` copies it and downgrades v3.0 to v2.1 with upstream LeRobot tooling, without touching keys or images. Other `env_cfg_type` values require setting `GR00T_SRC_DATASET` explicitly. `expert_data_num` is accepted for compatibility only — it is logged but not applied for episode subsetting; to ablate data scale, point `GR00T_SRC_DATASET` at a subset dataset and use a distinct `ckpt_name`.
 
 ## Training
 
@@ -57,7 +56,7 @@ bash eval.sh <bench_name> <task_name> <ckpt_name> <env_cfg_type> <action_type> <
 bash eval.sh RoboDojo stack_bowls RoboDojo-cotrain-arx_x5-joint-0 arx_x5 joint 0 0 0 <policy_conda_env> <eval_env_conda_env>
 ```
 
-`EVAL_ENV_TYPE=debug` runs the offline wiring check (no simulator); leave it unset or set `EVAL_ENV_TYPE=sim` for RoboDojo simulation. For split-machine deployment via `setup_eval_policy_server.sh` / `setup_eval_env_client.sh`, follow the [Deployment Flow](../../UPSTREAM_README.md#-deployment-flow).
+`EVAL_ENV_TYPE=debug` runs the offline wiring check (no simulator); leave it unset or set `EVAL_ENV_TYPE=sim` for RoboDojo simulation. For split-machine deployment via `setup_eval_policy_server.sh` / `setup_eval_env_client.sh`, follow the [Deployment Flow](../../INTEGRATION.md#remote-serving).
 
 ## Configuration
 

@@ -19,7 +19,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 source "$HOME/.local/bin/env"
 ```
 
-## 2. Install GR00T and XPolicyLab
+## 2. Install GR00T and the Moravec policy package
 
 On x86_64 GPU hosts, the upstream `pyproject.toml` may try to resolve aarch64-only wheels. Use the local wrapper, which creates `gr00t_n17/.venv` and installs the needed packages directly:
 

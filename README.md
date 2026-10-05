@@ -1,6 +1,6 @@
 # Moravec policy examples
 
-A focused XPolicyLab fork for integrating customer policies with Moravec evaluation. We retain the upstream policy lifecycle, model-specific configuration, and WebSocket/MessagePack client/server. The Python import namespace remains `XPolicyLab` for compatibility.
+Examples for integrating customer policies with Moravec evaluation. Each policy has its own model configuration and runtime, with a shared WebSocket/MessagePack client/server. See the [integration guide](INTEGRATION.md) for the interface and remote serving.
 
 ## Examples
 
@@ -54,6 +54,6 @@ The restart passed four WebSocket demo checks: reset, observation update, and ac
 
 Next: connect an evaluator, verify YAM observation/action semantics, and qualify each selected policy/checkpoint in simulation. We will refine deployment packaging and any shared compatibility schema with NVIDIA from those integrations. No new station abstraction or policy protocol is introduced here.
 
-## Attribution
+## Development
 
-Derived from XPolicyLab at `45ae74c1a427206f62d55f08f48f00295d2dc1a3`. See [FORK.md](FORK.md), [LICENSE](LICENSE), and the retained model licenses. [Archived upstream documentation](UPSTREAM_README.md) describes the original full project and its evaluation scripts; its full policy inventory is not included here.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the small adapter workflow and [THIRD_PARTY.md](THIRD_PARTY.md) for source attribution and licenses.
