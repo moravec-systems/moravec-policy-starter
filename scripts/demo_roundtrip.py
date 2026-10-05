@@ -32,8 +32,7 @@ async def main():
         root = Path(temporary)
         package = root / 'moravec_policy'
         package.mkdir()
-        for name in ('__init__.py', 'model_template.py'):
-            shutil.copy2(REPO / name, package / name)
+        shutil.copy2(REPO / 'model_template.py', package / 'model_template.py')
         for name in ('utils', 'client_server'):
             shutil.copytree(REPO / name, package / name,
                             ignore=shutil.ignore_patterns('__pycache__'))
