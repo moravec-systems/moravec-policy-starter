@@ -13,3 +13,8 @@ external/
 *.mp4
 .DS_Store
 MUJOCO_LOG.TXT
+
+# Evaluation evidence belongs in private run storage, never the starter.
+validation/
+results/
+evidence/
