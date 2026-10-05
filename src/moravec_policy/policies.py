@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .contracts import FixtureBackend, JointTrajectory, ModelEndpoint, Pose, PoseTrajectory
+from .contracts import ActionChunk, FixtureBackend, ModelEndpoint, Pose
 from .lifecycle import Policy
 from .llm import LLMHarness
 
@@ -21,9 +21,10 @@ class FixturePolicy(Policy):
         # Targets are explicit task instructions, not hidden object/scorer state.
         target = json.loads(obs.instruction)
         if self.output == "joint-trajectory":
-            action = JointTrajectory(
-                kind="joint-trajectory",
-                points=[{"time_from_start_s": 1.0, "positions": target["joint_target"]}],
+            action = ActionChunk(
+                timestep_s=1.0,
+                execution_horizon=1,
+                steps=[{"joint_positions": target["joint_target"]}],
             )
         else:
             from .geometry import multiply
@@ -31,21 +32,21 @@ class FixturePolicy(Policy):
             base = obs.tcp_poses["arm"]
             q = np.asarray(base.orientation_wxyz)
             delta = multiply(target["orientation_wxyz"], q * np.array([1, -1, -1, -1]))
-            action = PoseTrajectory(
-                kind="pose-trajectory",
-                arm="arm",
-                representation="relative",
-                reference="frame",
-                relative_to="observation",
+            action = ActionChunk(
                 timestep_s=1.0,
                 execution_horizon=1,
-                points=[
+                steps=[
                     {
-                        "pose": Pose(
-                            frame=base.frame,
-                            position_m=np.asarray(target["tcp_target_m"]) - base.position_m,
-                            orientation_wxyz=delta,
-                        )
+                        "tcp_targets": {
+                            "arm": {
+                                "representation": "relative",
+                                "pose": Pose(
+                                    frame=base.frame,
+                                    position_m=np.asarray(target["tcp_target_m"]) - base.position_m,
+                                    orientation_wxyz=delta,
+                                ),
+                            }
+                        }
                     }
                 ],
             )

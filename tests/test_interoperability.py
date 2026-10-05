@@ -7,12 +7,12 @@ import pytest
 
 from moravec_policy.action_adapter import decode_actions
 from moravec_policy.contracts import (
+    ActionChunk,
     Camera,
     Decision,
     Depth,
     Observation,
     Pose,
-    PoseTrajectory,
     RobotProfile,
 )
 from moravec_policy.geometry import compose_pose, resolve_pose_chunk
@@ -99,17 +99,20 @@ def test_rotated_tool_translation_and_composition():
 def test_relative_chunk_origins(relative_to, expected):
     base = Pose(frame="world", position_m=(1, 0, 0), orientation_wxyz=(1, 0, 0, 0))
     delta = Pose(frame="world", position_m=(1, 0, 0), orientation_wxyz=(1, 0, 0, 0))
-    chunk = PoseTrajectory(
-        kind="pose-trajectory",
-        arm="arm",
-        representation="relative",
-        relative_to=relative_to,
+    chunk = ActionChunk(
         timestep_s=0.1,
         execution_horizon=2,
-        points=[{"pose": delta}] * 3,
+        steps=[
+            {
+                "tcp_targets": {
+                    "arm": {"pose": delta, "representation": "relative", "relative_to": relative_to}
+                }
+            }
+        ]
+        * 3,
     )
-    assert resolve_pose_chunk(chunk, base)[-1].position_m[0] == expected
-    assert len(resolve_pose_chunk(chunk, base)) == 2
+    assert resolve_pose_chunk(chunk, {"arm": base})[-1]["arm"].position_m[0] == expected
+    assert len(resolve_pose_chunk(chunk, {"arm": base})) == 2
 
 
 def test_checkpoint_pose_mapping():
@@ -132,8 +135,11 @@ def test_checkpoint_pose_mapping():
         "rot": np.array([[1, 0, 0, 0], [1, 0, 0, 0]]),
     }
     action = decode_actions(streams, cfg, profile())
-    assert action.representation == "relative" and action.execution_horizon == 1
-    assert action.points[1].pose.position_m == (0.02, 0, 0)
+    assert (
+        action.steps[0].tcp_targets["arm"].representation == "relative"
+        and action.execution_horizon == 1
+    )
+    assert action.steps[1].tcp_targets["arm"].pose.position_m == (0.02, 0, 0)
     decision = Decision(
         episode_id="e",
         observation_sequence=0,
@@ -167,7 +173,7 @@ def test_batching_is_explicitly_unsupported():
     obs = observation()
     obs.instruction = json.dumps({"joint_target": {"shoulder": 0.1, "elbow": 0.2}})
     policy.update_obs(obs)
-    assert policy.get_action().points[0].positions["elbow"] == 0.2
+    assert policy.get_action().steps[0].joint_positions["elbow"] == 0.2
     policy.reset()
     with pytest.raises(ValueError):
         policy.get_action()
@@ -192,16 +198,12 @@ def test_rotation_adapter_roundtrip(representation):
     assert abs(np.dot(actual, q)) == pytest.approx(1)
 
 
-def test_gripper_and_coordinated_action_validation():
-    from moravec_policy.contracts import CoordinatedAction, GripperCommand, JointTrajectory
-
-    obs = observation()
-    grip = GripperCommand(kind="gripper-command", gripper="arm", open_fraction=1, duration_s=0.1)
-    joints = JointTrajectory(
-        kind="joint-trajectory",
-        points=[{"time_from_start_s": 0.1, "positions": {"shoulder": 0.1, "elbow": 0.2}}],
+def test_joint_and_gripper_shared_step():
+    action = ActionChunk(
+        timestep_s=0.1,
+        execution_horizon=1,
+        steps=[{"joint_positions": {"shoulder": 0.1}, "grippers": {"arm": 1}}],
     )
-    action = CoordinatedAction(kind="coordinated", tracks=[joints, grip])
     decision = Decision(
         episode_id="e",
         observation_sequence=0,
@@ -210,10 +212,7 @@ def test_gripper_and_coordinated_action_validation():
         evidence_kind="contract-fixture",
         action=action,
     )
-    validate_decision(decision, obs, profile(), 1)
-    action.tracks = [grip, grip]
-    with pytest.raises(ValueError, match="overlapping"):
-        validate_decision(decision, obs, profile(), 1)
+    validate_decision(decision, observation(), profile(), 1)
 
 
 def test_native_history_shapes_and_reset():

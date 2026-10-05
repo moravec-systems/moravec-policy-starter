@@ -11,7 +11,7 @@ from .contracts import Decision, EpisodeStart
 from .validation import validate_channels, validate_decision, validate_observation
 from .wire import observation_from_wire, pack, unpack
 
-PROTOCOL = "moravec.policy/v0.3"
+PROTOCOL = "moravec.policy/v0.4"
 
 
 def create_app(policy, manifest, token):
@@ -19,7 +19,7 @@ def create_app(policy, manifest, token):
         raise ValueError("policy token must contain at least 24 characters")
     app = FastAPI(
         title="Moravec policy service",
-        version="0.3.0",
+        version="0.4.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,

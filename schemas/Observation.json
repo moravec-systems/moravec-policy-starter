@@ -355,8 +355,8 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "moravec.observation/v0.3",
-      "default": "moravec.observation/v0.3",
+      "const": "moravec.observation/v0.4",
+      "default": "moravec.observation/v0.4",
       "title": "Schema Version",
       "type": "string"
     },

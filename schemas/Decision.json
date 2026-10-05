@@ -1,95 +1,64 @@
 {
   "$defs": {
-    "CoordinatedAction": {
+    "ActionChunk": {
       "additionalProperties": false,
       "properties": {
         "kind": {
-          "const": "coordinated",
+          "const": "action-chunk",
+          "default": "action-chunk",
           "title": "Kind",
           "type": "string"
         },
-        "tracks": {
+        "timestep_s": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Timestep S",
+          "type": "number"
+        },
+        "execution_horizon": {
+          "exclusiveMinimum": 0,
+          "title": "Execution Horizon",
+          "type": "integer"
+        },
+        "omitted_targets": {
+          "const": "hold-start",
+          "default": "hold-start",
+          "title": "Omitted Targets",
+          "type": "string"
+        },
+        "steps": {
           "items": {
-            "discriminator": {
-              "mapping": {
-                "gripper-command": "#/$defs/GripperCommand",
-                "joint-trajectory": "#/$defs/JointTrajectory",
-                "pose-trajectory": "#/$defs/PoseTrajectory"
-              },
-              "propertyName": "kind"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/$defs/JointTrajectory"
-              },
-              {
-                "$ref": "#/$defs/PoseTrajectory"
-              },
-              {
-                "$ref": "#/$defs/GripperCommand"
-              }
-            ]
+            "$ref": "#/$defs/ActionStep"
           },
-          "maxItems": 8,
+          "maxItems": 256,
           "minItems": 1,
-          "title": "Tracks",
+          "title": "Steps",
           "type": "array"
         }
       },
       "required": [
-        "kind",
-        "tracks"
+        "timestep_s",
+        "execution_horizon",
+        "steps"
       ],
-      "title": "CoordinatedAction",
+      "title": "ActionChunk",
       "type": "object"
     },
-    "GripperCommand": {
+    "ActionStep": {
       "additionalProperties": false,
       "properties": {
-        "kind": {
-          "const": "gripper-command",
-          "title": "Kind",
-          "type": "string"
-        },
-        "gripper": {
-          "title": "Gripper",
-          "type": "string"
-        },
-        "open_fraction": {
-          "maximum": 1,
-          "minimum": 0,
-          "title": "Open Fraction",
-          "type": "number"
-        },
-        "duration_s": {
-          "exclusiveMinimum": 0,
-          "maximum": 30,
-          "title": "Duration S",
-          "type": "number"
-        }
-      },
-      "required": [
-        "kind",
-        "gripper",
-        "open_fraction",
-        "duration_s"
-      ],
-      "title": "GripperCommand",
-      "type": "object"
-    },
-    "JointPoint": {
-      "additionalProperties": false,
-      "properties": {
-        "time_from_start_s": {
-          "exclusiveMinimum": 0,
-          "title": "Time From Start S",
-          "type": "number"
-        },
-        "positions": {
+        "joint_positions": {
           "additionalProperties": {
             "type": "number"
           },
-          "title": "Positions",
+          "title": "Joint Positions",
+          "type": "object"
+        },
+        "tcp_targets": {
+          "additionalProperties": {
+            "$ref": "#/$defs/PoseTarget"
+          },
+          "title": "Tcp Targets",
           "type": "object"
         },
         "grippers": {
@@ -102,49 +71,7 @@
           "type": "object"
         }
       },
-      "required": [
-        "time_from_start_s",
-        "positions"
-      ],
-      "title": "JointPoint",
-      "type": "object"
-    },
-    "JointTrajectory": {
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "const": "joint-trajectory",
-          "title": "Kind",
-          "type": "string"
-        },
-        "points": {
-          "items": {
-            "$ref": "#/$defs/JointPoint"
-          },
-          "maxItems": 256,
-          "minItems": 1,
-          "title": "Points",
-          "type": "array"
-        },
-        "execution_horizon": {
-          "anyOf": [
-            {
-              "exclusiveMinimum": 0,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Execution Horizon"
-        }
-      },
-      "required": [
-        "kind",
-        "points"
-      ],
-      "title": "JointTrajectory",
+      "title": "ActionStep",
       "type": "object"
     },
     "Pose": {
@@ -200,46 +127,14 @@
       "title": "Pose",
       "type": "object"
     },
-    "PosePoint": {
+    "PoseTarget": {
       "additionalProperties": false,
       "properties": {
         "pose": {
           "$ref": "#/$defs/Pose"
         },
-        "gripper_open_fraction": {
-          "anyOf": [
-            {
-              "maximum": 1,
-              "minimum": 0,
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Gripper Open Fraction"
-        }
-      },
-      "required": [
-        "pose"
-      ],
-      "title": "PosePoint",
-      "type": "object"
-    },
-    "PoseTrajectory": {
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "const": "pose-trajectory",
-          "title": "Kind",
-          "type": "string"
-        },
-        "arm": {
-          "title": "Arm",
-          "type": "string"
-        },
         "representation": {
+          "default": "absolute",
           "enum": [
             "absolute",
             "relative"
@@ -264,37 +159,12 @@
           ],
           "title": "Relative To",
           "type": "string"
-        },
-        "timestep_s": {
-          "exclusiveMinimum": 0,
-          "maximum": 1,
-          "title": "Timestep S",
-          "type": "number"
-        },
-        "execution_horizon": {
-          "exclusiveMinimum": 0,
-          "title": "Execution Horizon",
-          "type": "integer"
-        },
-        "points": {
-          "items": {
-            "$ref": "#/$defs/PosePoint"
-          },
-          "maxItems": 256,
-          "minItems": 1,
-          "title": "Points",
-          "type": "array"
         }
       },
       "required": [
-        "kind",
-        "arm",
-        "representation",
-        "timestep_s",
-        "execution_horizon",
-        "points"
+        "pose"
       ],
-      "title": "PoseTrajectory",
+      "title": "PoseTarget",
       "type": "object"
     },
     "Stop": {
@@ -321,8 +191,8 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "moravec.decision/v0.3",
-      "default": "moravec.decision/v0.3",
+      "const": "moravec.decision/v0.4",
+      "default": "moravec.decision/v0.4",
       "title": "Schema Version",
       "type": "string"
     },
@@ -353,26 +223,14 @@
     "action": {
       "discriminator": {
         "mapping": {
-          "coordinated": "#/$defs/CoordinatedAction",
-          "gripper-command": "#/$defs/GripperCommand",
-          "joint-trajectory": "#/$defs/JointTrajectory",
-          "pose-trajectory": "#/$defs/PoseTrajectory",
+          "action-chunk": "#/$defs/ActionChunk",
           "stop": "#/$defs/Stop"
         },
         "propertyName": "kind"
       },
       "oneOf": [
         {
-          "$ref": "#/$defs/JointTrajectory"
-        },
-        {
-          "$ref": "#/$defs/PoseTrajectory"
-        },
-        {
-          "$ref": "#/$defs/GripperCommand"
-        },
-        {
-          "$ref": "#/$defs/CoordinatedAction"
+          "$ref": "#/$defs/ActionChunk"
         },
         {
           "$ref": "#/$defs/Stop"

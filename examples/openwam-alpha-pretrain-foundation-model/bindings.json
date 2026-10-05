@@ -5,7 +5,7 @@
   "action_semantics": "absolute-joint-position",
   "embodiment_tag": "NEW_EMBODIMENT",
   "camera_bindings": {
-    "front": "overview"
+    "head_camera": "overview"
   },
   "state_bindings": {
     "arm": {

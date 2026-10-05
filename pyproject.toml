@@ -1,6 +1,6 @@
 [project]
 name = "moravec-policy-starter"
-version = "0.3.0"
+version = "0.4.0"
 description = "Versioned policy contracts and source-pinned robot model examples"
 requires-python = ">=3.10"
 dependencies = ["pydantic>=2.10,<3", "numpy>=1.26,<3", "fastapi>=0.115,<1", "uvicorn>=0.34,<1", "httpx>=0.28,<1", "pillow>=11,<13", "msgpack>=1.1,<2", "scipy>=1.14,<2", "websockets>=15,<16"]

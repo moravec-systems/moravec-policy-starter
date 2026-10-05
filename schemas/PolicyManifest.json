@@ -181,7 +181,7 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "moravec.policy/v0.3",
+      "const": "moravec.policy/v0.4",
       "title": "Schema Version",
       "type": "string"
     },

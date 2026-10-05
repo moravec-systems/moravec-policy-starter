@@ -8,7 +8,7 @@ import os
 import httpx
 from PIL import Image
 
-from .contracts import CartesianGoal, ModelEndpoint, PolicyManifest, PoseTrajectory, Stop
+from .contracts import ActionChunk, CartesianGoal, ModelEndpoint, PolicyManifest, Stop
 from .lifecycle import Policy
 
 SYSTEM = """Control the robot using only the provided observations and tools. Choose exactly
@@ -172,14 +172,16 @@ class LLMHarness(Policy):
         }
         if isinstance(action, CartesianGoal):
             steps = max(1, round(action.duration_s / profile.control_period_s))
-            return PoseTrajectory(
-                kind="pose-trajectory",
-                arm=action.arm,
-                representation="absolute",
+            return ActionChunk(
                 timestep_s=profile.control_period_s,
                 execution_horizon=steps,
-                points=[
-                    {"pose": action.target, "gripper_open_fraction": action.gripper_open_fraction}
+                steps=[
+                    {
+                        "tcp_targets": {action.arm: {"pose": action.target}},
+                        "grippers": {}
+                        if action.gripper_open_fraction is None
+                        else {action.arm: action.gripper_open_fraction},
+                    }
                     for _ in range(steps)
                 ],
             )

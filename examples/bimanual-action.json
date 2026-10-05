@@ -1,0 +1,50 @@
+{
+  "kind": "action-chunk",
+  "timestep_s": 0.02,
+  "execution_horizon": 1,
+  "omitted_targets": "hold-start",
+  "steps": [
+    {
+      "tcp_targets": {
+        "left": {
+          "pose": {
+            "frame": "world",
+            "position_m": [
+              0.4,
+              0.2,
+              0.2
+            ],
+            "orientation_wxyz": [
+              1,
+              0,
+              0,
+              0
+            ]
+          },
+          "representation": "absolute"
+        },
+        "right": {
+          "pose": {
+            "frame": "world",
+            "position_m": [
+              0.4,
+              -0.2,
+              0.2
+            ],
+            "orientation_wxyz": [
+              1,
+              0,
+              0,
+              0
+            ]
+          },
+          "representation": "absolute"
+        }
+      },
+      "grippers": {
+        "left": 0.5,
+        "right": 0.5
+      }
+    }
+  ]
+}

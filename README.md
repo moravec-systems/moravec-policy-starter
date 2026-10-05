@@ -1,6 +1,6 @@
 # Moravec policy starter
 
-A small container interface for evaluating a model in simulation or at a robot station. The model adapter handles inference; Moravec owns task execution and scoring. This is a v0.3 prototype, not a qualified hardware deployment.
+A small container interface for evaluating a model in simulation or at a robot station. The model adapter handles inference; Moravec owns task execution and scoring. This is a v0.4 prototype, not a qualified hardware deployment.
 
 ```text
 Station ↔ WebSocket / MessagePack ↔ Policy container
@@ -37,7 +37,7 @@ Serve an implementation through [create_app](src/moravec_policy/service.py). The
 The binary socket is `/policy`. Authenticate the handshake with `Authorization: Bearer <MORAVEC_POLICY_TOKEN>`. Use WSS outside loopback. Each request is a MessagePack map:
 
 ```text
-{protocol: "moravec.policy/v0.3", request_id: "unique-id", method: "...", payload: {...}}
+{protocol: "moravec.policy/v0.4", request_id: "unique-id", method: "...", payload: {...}}
 ```
 
 Methods: `hello`, `reset` (episode ID and robot profile), `update_obs` ([observation envelope](schemas/ObservationEnvelope.json)), `get_action` (empty payload), and `end` (episode ID). Replies echo protocol/request ID and contain `result` or `error`. One connection owns one container session. Errors require reset; disconnects abort the session. No automatic action retry or cross-connection resume is implemented.
@@ -46,7 +46,11 @@ Observation envelopes separate `metadata` from `observation: {instruction, visio
 
 - **Vision:** named RGB uint8 HWC byte buffers; optional registered depth as little-endian float32 meters (zero = invalid), 3×3 intrinsics, and 4×4 camera-to-reference-frame extrinsics. Capture timestamps are explicit. Required channels are declared in the policy manifest; missing channels fail validation.
 - **State:** named joint positions/velocities, TCP and end-effector poses, gripper joints/opening fractions, and optional mobile-base pose/twist. Position units are meters, revolute joints radians, rotations WXYZ quaternions. Base twist is `[vx, vy, vz, wx, wy, wz]` in the base pose's reference frame.
-- **Actions:** timestamped joint chunks, absolute/relative pose chunks, gripper commands, coordinated tracks, or stop. All coordinated tracks start at one station time. Each pose chunk specifies timestep, execution horizon, frame, and relative semantics. Frame-relative deltas use `p'=p+dp, q'=dq*q`; tool-relative deltas use `p'=p+R(q)dp, q'=q*dq`. Deltas reference either the observation pose or the previous predicted point, explicitly. A gripper fraction is 0 closed, 1 open.
+- **Actions:** `action-chunk` or `stop`. A chunk contains `timestep_s`, `execution_horizon`, and `steps`. Each step holds named `joint_positions`, `tcp_targets`, and `grippers`; all targets in step i are due at `(i + 1) * timestep_s` from the same station start time. Target names stay constant throughout the chunk. Single-arm and bimanual policies use the same structure. Joint and Cartesian targets cannot be mixed in one chunk without a qualified resource mapping.
+- **Omission:** `omitted_targets: "hold-start"` means uncommanded joints, arms, and grippers hold their state captured at chunk start; omitted fields never mean zero or release. Stations must implement this hold behavior or reject the chunk. Only the first `execution_horizon` steps execute; later steps are predictions. Validate the complete chunk before executing any step.
+- **Pose targets:** each named target specifies its pose, absolute/relative representation, frame/tool reference and observation/previous-point origin. Frame-relative deltas use `p'=p+dp, q'=dq*q`; tool-relative deltas use `p'=p+R(q)dp, q'=q*dq`. Frame and semantics remain constant per arm within a chunk. Gripper fractions are 0 closed, 1 open.
+
+See [a two-arm action chunk](examples/bimanual-action.json). v0.4 replaces the v0.3 trajectory/command variants and `coordinated` wrapper; old envelopes are rejected. Adapters and stations must upgrade together. Shared timestamps describe execution intent, not collision-free planning or hardware synchronization guarantees.
 
 MessagePack carries binary image/depth buffers directly; JSON schemas describe those byte fields using their JSON/base64 representation. This protocol is Moravec-versioned; matching lifecycle and robotics conventions does not imply wire compatibility with another server.
 

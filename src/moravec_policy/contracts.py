@@ -1,8 +1,7 @@
-"""Moravec v0.3 contracts, shared by simulation and physical station clients."""
+"""Moravec v0.4 contracts, shared by simulation and physical station clients."""
 
 from __future__ import annotations
 
-import itertools
 import math
 from typing import Annotated, Literal
 from urllib.parse import urlparse
@@ -60,7 +59,7 @@ class FixtureBackend(Contract):
 
 
 class PolicyManifest(Contract):
-    schema_version: Literal["moravec.policy/v0.3"]
+    schema_version: Literal["moravec.policy/v0.4"]
     model: ModelIdentity
     family: Literal["llm", "vla", "world-action", "fixture"]
     harness_version: str
@@ -200,7 +199,7 @@ class Feedback(Contract):
 
 
 class Observation(Contract):
-    schema_version: Literal["moravec.observation/v0.3"] = "moravec.observation/v0.3"
+    schema_version: Literal["moravec.observation/v0.4"] = "moravec.observation/v0.4"
     episode_id: str
     sequence: int = Field(ge=0)
     station_time_s: float = Field(ge=0)
@@ -220,27 +219,6 @@ class Observation(Contract):
     base_twist: tuple[float, float, float, float, float, float] | None = None
 
 
-class JointPoint(Contract):
-    time_from_start_s: float = Field(gt=0)
-    positions: dict[str, float]
-    grippers: dict[str, Annotated[float, Field(ge=0, le=1)]] = Field(default_factory=dict)
-
-
-class JointTrajectory(Contract):
-    kind: Literal["joint-trajectory"]
-    points: list[JointPoint] = Field(min_length=1, max_length=256)
-    execution_horizon: int | None = Field(default=None, gt=0)
-
-    @model_validator(mode="after")
-    def increasing_time(self):
-        if self.execution_horizon is not None and self.execution_horizon > len(self.points):
-            raise ValueError("execution horizon exceeds prediction horizon")
-        times = [p.time_from_start_s for p in self.points]
-        if any(b <= a for a, b in itertools.pairwise(times)):
-            raise ValueError("trajectory timestamps must strictly increase")
-        return self
-
-
 class CartesianGoal(Contract):
     kind: Literal["cartesian-goal"]
     arm: str
@@ -249,27 +227,14 @@ class CartesianGoal(Contract):
     gripper_open_fraction: float | None = Field(default=None, ge=0, le=1)
 
 
-class PosePoint(Contract):
+class PoseTarget(Contract):
     pose: Pose
-    gripper_open_fraction: float | None = Field(default=None, ge=0, le=1)
-
-
-class PoseTrajectory(Contract):
-    kind: Literal["pose-trajectory"]
-    arm: str
-    representation: Literal["absolute", "relative"]
+    representation: Literal["absolute", "relative"] = "absolute"
     reference: Literal["frame", "tool"] = "frame"
     relative_to: Literal["observation", "previous"] = "observation"
-    timestep_s: float = Field(gt=0, le=1)
-    execution_horizon: int = Field(gt=0)
-    points: list[PosePoint] = Field(min_length=1, max_length=256)
 
     @model_validator(mode="after")
-    def horizon(self):
-        if self.execution_horizon > len(self.points):
-            raise ValueError("execution horizon exceeds prediction horizon")
-        if len({p.pose.frame for p in self.points}) != 1:
-            raise ValueError("pose chunk must use one reference frame")
+    def absolute_reference(self):
         if self.representation == "absolute" and (
             self.reference != "frame" or self.relative_to != "observation"
         ):
@@ -277,11 +242,51 @@ class PoseTrajectory(Contract):
         return self
 
 
-class GripperCommand(Contract):
-    kind: Literal["gripper-command"]
-    gripper: str
-    open_fraction: float = Field(ge=0, le=1)
-    duration_s: float = Field(gt=0, le=30)
+class ActionStep(Contract):
+    joint_positions: dict[str, float] = Field(default_factory=dict)
+    tcp_targets: dict[str, PoseTarget] = Field(default_factory=dict)
+    grippers: dict[str, Annotated[float, Field(ge=0, le=1)]] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def nonempty(self):
+        if not (self.joint_positions or self.tcp_targets or self.grippers):
+            raise ValueError("action step must command at least one target")
+        if self.joint_positions and self.tcp_targets:
+            raise ValueError("mixed joint/pose control requires a qualified resource mapping")
+        return self
+
+
+class ActionChunk(Contract):
+    kind: Literal["action-chunk"] = "action-chunk"
+    timestep_s: float = Field(gt=0, le=1)
+    execution_horizon: int = Field(gt=0)
+    omitted_targets: Literal["hold-start"] = "hold-start"
+    steps: list[ActionStep] = Field(min_length=1, max_length=256)
+
+    @model_validator(mode="after")
+    def consistent_targets(self):
+        if self.execution_horizon > len(self.steps):
+            raise ValueError("execution horizon exceeds prediction horizon")
+        first = self.steps[0]
+        for step in self.steps:
+            for field in ("joint_positions", "tcp_targets", "grippers"):
+                if set(getattr(step, field)) != set(getattr(first, field)):
+                    raise ValueError("target names must remain constant across a chunk")
+            for name, target in step.tcp_targets.items():
+                initial = first.tcp_targets[name]
+                if (
+                    target.pose.frame,
+                    target.representation,
+                    target.reference,
+                    target.relative_to,
+                ) != (
+                    initial.pose.frame,
+                    initial.representation,
+                    initial.reference,
+                    initial.relative_to,
+                ):
+                    raise ValueError("pose frame and semantics must remain constant across a chunk")
+        return self
 
 
 class Stop(Contract):
@@ -289,23 +294,15 @@ class Stop(Contract):
     reason: str
 
 
-class CoordinatedAction(Contract):
-    kind: Literal["coordinated"]
-    # All tracks start at the same station time; each track declares its own timestamps.
-    tracks: list[
-        Annotated[JointTrajectory | PoseTrajectory | GripperCommand, Field(discriminator="kind")]
-    ] = Field(min_length=1, max_length=8)
-
-
 class Decision(Contract):
-    schema_version: Literal["moravec.decision/v0.3"] = "moravec.decision/v0.3"
+    schema_version: Literal["moravec.decision/v0.4"] = "moravec.decision/v0.4"
     episode_id: str
     observation_sequence: int
     decision_id: str
     valid_until_station_time_s: float
     evidence_kind: Literal["model-inference", "contract-fixture"]
     action: Annotated[
-        JointTrajectory | PoseTrajectory | GripperCommand | CoordinatedAction | Stop,
+        ActionChunk | Stop,
         Field(discriminator="kind"),
     ]
 
@@ -320,7 +317,7 @@ class EpisodeEnd(Contract):
 
 
 class DeploymentManifest(Contract):
-    schema_version: Literal["moravec.deployment/v0.3"]
+    schema_version: Literal["moravec.deployment/v0.4"]
     image: str = Field(pattern=r"^.+@sha256:[0-9a-f]{64}$")
     registry_pull_secret_ref: str
     network_profile: Literal["isolated", "api-connected"]

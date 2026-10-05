@@ -26,7 +26,6 @@ from moravec_policy.contracts import (
     Feedback,
     Observation,
     PolicyManifest,
-    PoseTrajectory,
     RobotProfile,
     Stop,
 )
@@ -255,31 +254,30 @@ def main():
                                 from moravec_policy.geometry import resolve_pose_chunk
 
                                 action = decision.action
-                                if isinstance(action, PoseTrajectory):
-                                    poses = resolve_pose_chunk(action, obs.tcp_poses[action.arm])
+                                if action.steps[0].tcp_targets:
+                                    poses = resolve_pose_chunk(action, obs.tcp_poses)
                                     commands = [
                                         solve_goal(
                                             CartesianGoal(
                                                 kind="cartesian-goal",
-                                                arm=action.arm,
-                                                target=p,
+                                                arm="arm",
+                                                target=p["arm"],
                                                 duration_s=action.timestep_s,
                                             )
                                         )
                                         for p in poses
                                     ]
-                                    times = [
-                                        (i + 1) * action.timestep_s for i in range(len(commands))
-                                    ]
                                 else:
-                                    points = action.points[
-                                        : action.execution_horizon or len(action.points)
-                                    ]
                                     commands = [
-                                        np.array([p.positions[n] for n in ["shoulder", "elbow"]])
-                                        for p in points
+                                        np.array(
+                                            [
+                                                point.joint_positions.get(n, obs.joint_positions[n])
+                                                for n in ["shoulder", "elbow"]
+                                            ]
+                                        )
+                                        for point in action.steps[: action.execution_horizon]
                                     ]
-                                    times = [p.time_from_start_s for p in points]
+                                times = [(i + 1) * action.timestep_s for i in range(len(commands))]
                                 if any(
                                     not j.lower <= v <= j.upper
                                     for command in commands
@@ -339,7 +337,7 @@ def main():
     (args.output / "events.json").write_text(json.dumps(events, indent=2) + "\n")
     report = {
         "simulator": "mujoco",
-        "station_transport": "WebSocket/MessagePack v0.3",
+        "station_transport": "WebSocket/MessagePack v0.4",
         "simulator_version": mujoco.__version__,
         "model_execution": args.live_astra,
         "test_double": None

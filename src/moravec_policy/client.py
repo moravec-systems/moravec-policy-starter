@@ -6,7 +6,7 @@ from websockets.sync.client import connect
 from .contracts import Decision
 from .wire import MAX_MESSAGE_BYTES, observation_to_wire, pack, unpack
 
-PROTOCOL = "moravec.policy/v0.3"
+PROTOCOL = "moravec.policy/v0.4"
 
 
 class RemotePolicy:

@@ -1,6 +1,6 @@
 {
-  "schema_version": "moravec.policy/v0.3",
-  "harness_version": "moravec-0.3.0",
+  "schema_version": "moravec.policy/v0.4",
+  "harness_version": "moravec-0.4.0",
   "model": {
     "name": "gpt-6-astra",
     "provider_model_id": "gpt-6-astra"

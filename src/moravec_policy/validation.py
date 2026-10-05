@@ -1,14 +1,6 @@
 """Checks belong on both inference intake and the station execution boundary."""
 
-from .contracts import (
-    CoordinatedAction,
-    Decision,
-    GripperCommand,
-    JointTrajectory,
-    Observation,
-    PoseTrajectory,
-    RobotProfile,
-)
+from .contracts import ActionChunk, Decision, Observation, RobotProfile
 
 
 def validate_observation(obs: Observation, profile: RobotProfile):
@@ -50,60 +42,28 @@ def validate_decision(decision: Decision, obs: Observation, profile: RobotProfil
     ):
         raise ValueError("expired or excessive action validity")
     action = decision.action
-    if isinstance(action, CoordinatedAction):
-        controlled = set()
-        for track in action.tracks:
-            if isinstance(track, JointTrajectory):
-                resources = {"joint:" + n for n in track.points[0].positions}
-            elif isinstance(track, PoseTrajectory):
-                resources = {"arm:" + track.arm}
-                if any(p.gripper_open_fraction is not None for p in track.points):
-                    resources.add("gripper:" + track.arm)
-            else:
-                resources = {"gripper:" + track.gripper}
-            if controlled.intersection(resources):
-                raise ValueError("overlapping coordinated control")
-            controlled.update(resources)
-            validate_decision(decision.model_copy(update={"action": track}), obs, profile, now_s)
-        if any(x.startswith("joint:") for x in controlled) and any(
-            x.startswith("arm:") for x in controlled
-        ):
-            raise ValueError("mixed joint/pose tracks require a qualified resource mapping")
-    elif isinstance(action, JointTrajectory):
-        if action.points[-1].time_from_start_s > profile.max_action_duration_s:
-            raise ValueError("trajectory too long")
-        for point in action.points:
-            if not set(point.grippers).issubset(obs.gripper_open_fraction):
+    if isinstance(action, ActionChunk):
+        if action.timestep_s * len(action.steps) > profile.max_action_duration_s:
+            raise ValueError("action chunk too long")
+        joints = {j.name: j for j in profile.joints}
+        for step in action.steps:
+            if not set(step.joint_positions).issubset(joints):
+                raise ValueError("unknown joint")
+            if not set(step.grippers).issubset(obs.gripper_open_fraction):
                 raise ValueError("unknown gripper")
-            if set(point.positions) != {j.name for j in profile.joints}:
-                raise ValueError("trajectory joint names do not match profile")
-            for joint in profile.joints:
-                if not joint.lower <= point.positions[joint.name] <= joint.upper:
+            for name, value in step.joint_positions.items():
+                if not joints[name].lower <= value <= joints[name].upper:
                     raise ValueError("joint limit exceeded")
-    elif isinstance(action, PoseTrajectory):
-        if action.arm not in obs.tcp_poses:
-            raise ValueError("unknown arm")
-        if action.timestep_s * len(action.points) > profile.max_action_duration_s:
-            raise ValueError("pose trajectory too long")
-        for point in action.points:
-            if point.pose.frame not in profile.frames:
-                raise ValueError("unknown pose frame")
-            if (
-                action.representation == "relative"
-                and point.pose.frame != obs.tcp_poses[action.arm].frame
-            ):
-                raise ValueError("relative pose requires calibrated common frame")
-            if (
-                point.gripper_open_fraction is not None
-                and action.arm not in obs.gripper_open_fraction
-            ):
-                raise ValueError("unknown gripper")
-    elif isinstance(action, GripperCommand):
-        if (
-            action.gripper not in obs.gripper_open_fraction
-            or action.duration_s > profile.max_action_duration_s
-        ):
-            raise ValueError("unknown gripper or excessive duration")
+            for arm, target in step.tcp_targets.items():
+                if arm not in obs.tcp_poses:
+                    raise ValueError("unknown arm")
+                if target.pose.frame not in profile.frames:
+                    raise ValueError("unknown pose frame")
+                if (
+                    target.representation == "relative"
+                    and target.pose.frame != obs.tcp_poses[arm].frame
+                ):
+                    raise ValueError("relative pose requires calibrated common frame")
 
 
 def validate_channels(obs, requirements):

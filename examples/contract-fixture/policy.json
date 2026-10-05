@@ -1,6 +1,6 @@
 {
-  "schema_version": "moravec.policy/v0.3",
-  "harness_version": "moravec-0.3.0",
+  "schema_version": "moravec.policy/v0.4",
+  "harness_version": "moravec-0.4.0",
   "model": {
     "name": "contract-fixture",
     "provider_model_id": "contract-fixture"

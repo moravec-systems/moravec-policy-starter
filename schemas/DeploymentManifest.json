@@ -2,7 +2,7 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "moravec.deployment/v0.3",
+      "const": "moravec.deployment/v0.4",
       "title": "Schema Version",
       "type": "string"
     },

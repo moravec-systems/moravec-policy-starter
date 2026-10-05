@@ -38,14 +38,17 @@ def compose_pose(base, delta, reference):
 
 
 def resolve_pose_chunk(chunk, initial):
+    """Resolve all named arms on the shared timeline, holding omitted arms at start."""
     poses = []
-    previous = initial
-    for point in chunk.points[: chunk.execution_horizon]:
-        if chunk.representation == "absolute":
-            target = point.pose
-        else:
-            base = initial if chunk.relative_to == "observation" else previous
-            target = compose_pose(base, point.pose, chunk.reference)
-        poses.append(target)
-        previous = target
+    previous = dict(initial)
+    for step in chunk.steps[: chunk.execution_horizon]:
+        resolved = dict(initial)
+        for arm, target in step.tcp_targets.items():
+            if target.representation == "absolute":
+                resolved[arm] = target.pose
+            else:
+                base = initial[arm] if target.relative_to == "observation" else previous[arm]
+                resolved[arm] = compose_pose(base, target.pose, target.reference)
+        poses.append(resolved)
+        previous = resolved
     return poses

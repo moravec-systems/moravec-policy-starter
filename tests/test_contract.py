@@ -111,11 +111,11 @@ def test_executor_rejects_without_actuation(profile, obs, issue):
     elif issue == "wrong-episode":
         decision["episode_id"] = "other"
     elif issue == "limit":
-        decision["action"]["points"][0]["positions"]["elbow"] = 20
+        decision["action"]["steps"][0]["joint_positions"]["elbow"] = 20
     elif issue == "wrong-joint":
-        decision["action"]["points"][0]["positions"] = {"wrong": 0}
+        decision["action"]["steps"][0]["joint_positions"] = {"wrong": 0}
     else:
-        decision["action"]["points"][0]["time_from_start_s"] = 20
+        decision["action"]["timestep_s"] = 20
     with pytest.raises(ValueError):
         validate_decision(Decision.model_validate(decision), obs, profile, now)
 
@@ -132,7 +132,7 @@ def test_lifecycle_feedback_and_reset(client, obs, profile):
             ws.send_bytes(
                 pack(
                     {
-                        "protocol": "moravec.policy/v0.3",
+                        "protocol": "moravec.policy/v0.4",
                         "request_id": str(counter),
                         "method": method,
                         "payload": payload,
@@ -229,7 +229,7 @@ def test_llm_http_schema_and_feedback(profile, obs):
     with httpx.Client(transport=httpx.MockTransport(respond)) as http:
         policy = LLMHarness(llm_config(), client=http, token=TOKEN)
         first = infer(policy, obs, profile)
-        assert first.action.kind == "pose-trajectory"
+        assert first.action.kind == "action-chunk"
         next_obs = obs.model_copy(update={"sequence": 1})
         with pytest.raises(ValueError, match="feedback"):
             infer(policy, next_obs, profile)
@@ -365,7 +365,7 @@ def test_multiple_updates_and_duplicate_requests(client, obs, profile):
             ws.send_bytes(
                 pack(
                     {
-                        "protocol": "moravec.policy/v0.3",
+                        "protocol": "moravec.policy/v0.4",
                         "request_id": request_id,
                         "method": method,
                         "payload": payload,
@@ -395,7 +395,7 @@ def test_missing_feedback_faults_session(client, obs, profile):
             ws.send_bytes(
                 pack(
                     {
-                        "protocol": "moravec.policy/v0.3",
+                        "protocol": "moravec.policy/v0.4",
                         "request_id": str(i),
                         "method": method,
                         "payload": payload,

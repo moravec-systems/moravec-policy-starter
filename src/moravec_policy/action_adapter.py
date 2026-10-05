@@ -3,17 +3,18 @@
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from .contracts import CoordinatedAction, JointTrajectory, PoseTrajectory
+from .contracts import ActionChunk
 
 
 def decode_actions(streams, cfg, profile):
     semantics = cfg["action_semantics"]
+    steps = []
     if semantics == "absolute-joint-position":
         bindings = cfg["action_bindings"]
-        lengths = {len(streams[k]) for k in bindings}
-        if len(lengths) != 1:
+        gripper_bindings = cfg.get("gripper_bindings", {})
+        lengths = {len(streams[k]) for k in [*bindings, *gripper_bindings]}
+        if len(lengths) != 1 or 0 in lengths:
             raise ValueError("inconsistent action horizons")
-        points = []
         for i in range(next(iter(lengths))):
             positions = {}
             for key, names in bindings.items():
@@ -21,49 +22,62 @@ def decode_actions(streams, cfg, profile):
                 if len(values) != len(names) or set(positions).intersection(names):
                     raise ValueError("invalid joint bindings")
                 positions.update(zip(names, values.tolist()))
-            points.append(
-                {"time_from_start_s": (i + 1) * cfg["timestep_s"], "positions": positions}
-            )
-        return JointTrajectory(
-            kind="joint-trajectory", points=points, execution_horizon=cfg["execution_horizon"]
-        )
-    if semantics not in {"absolute-ee-pose", "relative-ee-pose"}:
+            grippers = {}
+            for key, name in gripper_bindings.items():
+                if name in grippers:
+                    raise ValueError("duplicate gripper binding")
+                grippers[name] = float(np.asarray(streams[key][i]).reshape(1)[0])
+            steps.append({"joint_positions": positions, "grippers": grippers})
+    elif semantics in {"absolute-ee-pose", "relative-ee-pose"}:
+        bindings = cfg.get("pose_bindings") or [cfg["pose_binding"]]
+        arms = set()
+        gripper_names = set()
+        for binding in bindings:
+            arm = binding["arm"]
+            if arm in arms:
+                raise ValueError("duplicate arm binding")
+            arms.add(arm)
+            translations = np.asarray(streams[binding["translation_stream"]])
+            rotations = np.asarray(streams[binding["rotation_stream"]])
+            if (
+                len(translations) == 0
+                or translations.ndim != 2
+                or translations.shape[1] != 3
+                or len(rotations) != len(translations)
+            ):
+                raise ValueError("invalid pose stream shapes")
+            rotations = [rotation_wxyz(value, binding["rotation_format"]) for value in rotations]
+            grippers = streams[binding["gripper_stream"]] if binding.get("gripper_stream") else None
+            if grippers is not None and len(grippers) != len(translations):
+                raise ValueError("gripper horizon mismatch")
+            gripper = binding.get("gripper", arm)
+            if grippers is not None:
+                if gripper in gripper_names:
+                    raise ValueError("duplicate gripper binding")
+                gripper_names.add(gripper)
+            if not steps:
+                steps = [{"tcp_targets": {}, "grippers": {}} for _ in translations]
+            if len(steps) != len(translations):
+                raise ValueError("inconsistent action horizons")
+            for i, (xyz, quat) in enumerate(zip(translations, rotations)):
+                steps[i]["tcp_targets"][arm] = {
+                    "pose": {
+                        "frame": binding["frame"],
+                        "position_m": xyz,
+                        "orientation_wxyz": quat,
+                    },
+                    "representation": "relative"
+                    if semantics.startswith("relative")
+                    else "absolute",
+                    "reference": binding["reference"],
+                    "relative_to": binding["relative_to"],
+                }
+                if grippers is not None:
+                    steps[i]["grippers"][gripper] = float(np.asarray(grippers[i]).reshape(1)[0])
+    else:
         raise ValueError("unsupported checkpoint action semantics")
-    if "pose_bindings" in cfg:
-        tracks = []
-        for binding in cfg["pose_bindings"]:
-            single = {k: v for k, v in cfg.items() if k != "pose_bindings"}
-            single["pose_binding"] = binding
-            tracks.append(decode_actions(streams, single, profile))
-        return CoordinatedAction(kind="coordinated", tracks=tracks)
-    binding = cfg["pose_binding"]
-    translations = np.asarray(streams[binding["translation_stream"]])
-    rotations = np.asarray(streams[binding["rotation_stream"]])
-    if translations.ndim != 2 or translations.shape[1] != 3 or len(rotations) != len(translations):
-        raise ValueError("invalid pose stream shapes")
-    rotations = np.stack([rotation_wxyz(value, binding["rotation_format"]) for value in rotations])
-    grippers = streams[binding["gripper_stream"]] if binding.get("gripper_stream") else None
-    if grippers is not None and len(grippers) != len(translations):
-        raise ValueError("gripper horizon mismatch")
-    points = []
-    for i, (xyz, quat) in enumerate(zip(translations, rotations)):
-        points.append(
-            {
-                "pose": {"frame": binding["frame"], "position_m": xyz, "orientation_wxyz": quat},
-                "gripper_open_fraction": None
-                if grippers is None
-                else float(np.asarray(grippers[i]).reshape(1)[0]),
-            }
-        )
-    return PoseTrajectory(
-        kind="pose-trajectory",
-        arm=binding["arm"],
-        representation="relative" if semantics.startswith("relative") else "absolute",
-        reference=binding["reference"],
-        relative_to=binding["relative_to"],
-        timestep_s=cfg["timestep_s"],
-        execution_horizon=cfg["execution_horizon"],
-        points=points,
+    return ActionChunk(
+        timestep_s=cfg["timestep_s"], execution_horizon=cfg["execution_horizon"], steps=steps
     )
 
 
