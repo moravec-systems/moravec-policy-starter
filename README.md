@@ -15,6 +15,8 @@ Examples for integrating customer policies with Moravec evaluation. Each policy 
 
 Use each example's README and `deploy.yml` for its dependencies, checkpoint, and launch settings. GPU runtimes and checkpoints are installed separately. Model and agent implementations are fetched on demand with `scripts/fetch_policy.py` or, for MolmoAct2, as part of its pinned Hugging Face snapshot; they are not stored in Git. Each policy README gives its runtime setup commands.
 
+For the container handoff, start with the [GR00T container quickstart](policy/GR00T_N17/README.md#container-quickstart). The [web demo](https://moravec-evaluation-demo.vercel.app/demo) previews submission; it does not execute containers or simulations. Other policies will receive containers later.
+
 ## Hardware scope
 
 All Moravec setups in this scope are bimanual. The names below identify hardware, not validation claims.
