@@ -31,9 +31,7 @@ packages = [
     "moravec_policy.policy.MolmoAct2",
     "moravec_policy.utils",
     "client_server",
-    "client_server.tcp",
-    "client_server.ws",
-    "client_server.ws.protocol",
+    "client_server.protocol",
 ]
 
 [tool.setuptools.package-data]

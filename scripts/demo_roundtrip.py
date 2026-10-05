@@ -48,8 +48,8 @@ async def main():
         (env / 'sim/demo.yml').write_text('scene:\n  num_envs: 2\n')
         sys.path[:0] = [str(root), str(package)]
         from moravec_policy.policy.demo_policy.model import Model
-        from client_server.ws.model_server import PolicyServer, PolicyServerConfig
-        from client_server.ws.model_client import WsModelClient
+        from client_server.model_server import PolicyServer, PolicyServerConfig
+        from client_server.model_client import WsModelClient
 
         for robot, dimensions in json.loads(registry.read_text()).items():
             (env / f'{robot}.yml').write_text(f'config:\n  robot: {robot}\n  sim: demo\n')

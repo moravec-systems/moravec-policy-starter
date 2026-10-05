@@ -18,11 +18,11 @@ import yaml
 from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
-from client_server.ws.protocol.codec import decode_envelope, decode_frame, encode_frame
-from client_server.ws.protocol.exceptions import ErrorCode, WsError
-from client_server.ws.protocol.keepalive import normalize_ws_ping
-from client_server.ws.protocol.messages import MessageType
-from client_server.ws.protocol.schemas import Frame
+from client_server.protocol.codec import decode_envelope, decode_frame, encode_frame
+from client_server.protocol.exceptions import ErrorCode, WsError
+from client_server.protocol.keepalive import normalize_ws_ping
+from client_server.protocol.messages import MessageType
+from client_server.protocol.schemas import Frame
 from moravec_policy.utils.process_data import decode_obs_images
 
 logger = logging.getLogger(__name__)
@@ -446,11 +446,7 @@ class PolicyServer:
         method = getattr(self.model, "reset", None)
         if not callable(method):
             raise WsError(ErrorCode.RESET_FAILED, "model.reset is not callable")
-        # reset() takes no arguments (see ModelTemplate.reset). The legacy TCP
-        # server appeared to support reset(obs) only because it dispatched every
-        # command through one generic `method(obs) if obs is not None` line; no
-        # caller ever sent one. A policy that needs a first observation should
-        # reset() and then take a normal update_obs.
+        # Reset episode state before supplying a new observation.
         try:
             result = await self._call_model_method(method)
         except Exception as exc:
@@ -458,7 +454,7 @@ class PolicyServer:
         return self._reply(frame, MessageType.RESET_RESULT, _ok_payload(result))
 
     async def _handle_call(self, frame: Frame) -> Frame:
-        # Generic model-method dispatch, mirroring the legacy TCP server:
+        # Dispatch public model methods:
         # call method(obs) when obs is provided, method() otherwise.
         func_name = frame.payload.get("func_name")
         if not isinstance(func_name, str) or not func_name or func_name.startswith("_"):
@@ -597,6 +593,8 @@ def main() -> None:
     if not isinstance(data, dict):
         raise ValueError(f"config must be a YAML mapping: {args.config_path}")
     deploy_cfg = data
+    if deploy_cfg.get("protocol", "ws") != "ws":
+        raise ValueError("Only the ws protocol is supported")
     if args.host is not None:
         deploy_cfg["host"] = args.host
     if args.port is not None:

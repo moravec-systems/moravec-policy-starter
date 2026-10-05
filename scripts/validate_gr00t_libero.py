@@ -32,7 +32,7 @@ suite = benchmark.get_benchmark_dict()["libero_spatial"]()
 if (out / "results.json").exists():
     raise SystemExit("Choose a new output directory to preserve previous results.")
 results = []
-from client_server.ws.model_client import WsModelClient
+from client_server.model_client import WsModelClient
 
 
 def encode(raw, instruction):

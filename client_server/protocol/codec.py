@@ -10,8 +10,8 @@ import msgpack_numpy
 import numpy as np
 from pydantic import ValidationError
 
-from client_server.ws.protocol.exceptions import ErrorCode, WsError
-from client_server.ws.protocol.schemas import Frame
+from client_server.protocol.exceptions import ErrorCode, WsError
+from client_server.protocol.schemas import Frame
 
 
 def _tensor_to_numpy(obj: Any) -> Any:
@@ -25,7 +25,7 @@ def _tensor_to_numpy(obj: Any) -> Any:
     torch = sys.modules.get("torch")
     if torch is None or not isinstance(obj, torch.Tensor):
         return obj
-    # Same convenience as the legacy TCP codec: models may return CUDA or
+    # Models may return CUDA or
     # half-precision tensors straight from inference.
     tensor = obj.detach().cpu()
     if tensor.dtype == torch.bfloat16:
@@ -51,12 +51,10 @@ def _encode_numpy(obj: Any) -> Any:
 
 
 def _normalize_map_keys(mapping: dict[Any, Any]) -> dict[Any, Any]:
-    """Match the legacy JSON codec: int-keyed maps arrive with str keys.
+    """Normalize integer map keys to strings for policy observation lookups.
 
-    json.dumps turned ``{0: ...}`` into ``{"0": ...}`` on the wire, so every
-    model written against the TCP protocol indexes env-idx-keyed maps by
-    string. msgpack preserves int keys, which would silently change those
-    lookups from obs["0"] to obs[0]; normalize back to strings instead.
+    Preserve the existing wire contract: environment-indexed maps use "0",
+    not 0, even though MessagePack can preserve integer keys.
     """
     if all(isinstance(key, str) for key in mapping):
         return mapping

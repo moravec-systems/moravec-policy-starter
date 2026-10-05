@@ -1,107 +1,41 @@
-import asyncio
-import os
-import threading
-import ast
-import time
-import yaml
-import importlib
 import argparse
-import traceback
-from client_server.tcp.model_server import ModelServer
+import ast
+import asyncio
+import importlib
 
+import yaml
 
-def _default_protocol() -> str:
-    """Default to the websocket policy protocol."""
-    return "ws"
+from client_server.model_server import PolicyServer, PolicyServerConfig
 
-def eval_function_decorator(policy_model_name, Func_and_Class_name):
-    """Load a specified function (e.g., get_model) from a policy module"""
-    module = importlib.import_module(policy_model_name)
-    return getattr(module, Func_and_Class_name)
 
 def main(deploy_cfg):
-    """Main entry: load model, start server, run indefinitely"""
-    # Extract basic arguments
-    policy_name = deploy_cfg.get("policy_name")
-    port = deploy_cfg.get("port")
-    host = deploy_cfg.get("host", "0.0.0.0")
+    """Load the configured policy and serve it over WebSocket."""
     protocol = deploy_cfg.get("protocol", "ws")
-
-    # Instantiate model
-    model_class_func = eval_function_decorator(f"moravec_policy.policy.{policy_name}.model", "Model")
-    model = model_class_func(deploy_cfg)
-
-    if protocol == "ws":
-        try:
-            from client_server.ws.model_server import PolicyServer, PolicyServerConfig
-        except ModuleNotFoundError as exc:
-            if exc.name == "client_server":
-                # client_server.ws ships in this repo; make it importable even when
-                # moravec_policy is not pip-installed in the current environment.
-                import sys
-                repo_root = os.path.dirname(os.path.abspath(__file__))
-                if repo_root not in sys.path:
-                    sys.path.insert(0, repo_root)
-                try:
-                    from client_server.ws.model_server import PolicyServer, PolicyServerConfig
-                except ModuleNotFoundError as dep_exc:
-                    raise RuntimeError(
-                        "ws policy server requires moravec_policy websocket dependencies "
-                        f"(missing module: {dep_exc.name}). Install in the policy env with: "
-                        "pip install -e . from the moravec_policy root."
-                    ) from dep_exc
-            else:
-                raise RuntimeError(
-                    "ws policy server requires moravec_policy websocket dependencies "
-                    f"(missing module: {exc.name}). Install in the policy env with: "
-                    "pip install -e . from the moravec_policy root."
-                ) from exc
-
-        server = PolicyServer(
-            model,
-            PolicyServerConfig(
-                host=host,
-                port=int(port),
-                ws_ping_interval_s=deploy_cfg.get("ws_ping_interval_s", 20.0),
-                ws_ping_timeout_s=deploy_cfg.get("ws_ping_timeout_s", 20.0),
-            ),
-        )
-        try:
-            asyncio.run(server.serve_forever())
-        except KeyboardInterrupt:
-            print("\nShutting down websocket policy server...")
-        return
-    if protocol != "legacy_tcp":
-        raise ValueError(f"unsupported policy server protocol: {protocol}")
-
-    # Wrap server.start so exceptions inside thread are fully printed
-    def run_server():
-        try:
-            server.start()
-        except Exception:
-            print("\033[31m[ERROR] Exception occurred inside server thread:\033[0m")
-            traceback.print_exc()
-            raise
-
-    # Start server in background thread
-    server = ModelServer(model, host=host, port=port)
-    thread = threading.Thread(target=run_server, daemon=True)
-    thread.start()
-
-    # Keep main thread alive until KeyboardInterrupt
+    if protocol != "ws":
+        raise ValueError(f"Unsupported protocol {protocol!r}; only ws is supported")
+    policy_name = deploy_cfg["policy_name"]
+    module = importlib.import_module(f"moravec_policy.policy.{policy_name}.model")
+    model = module.Model(deploy_cfg)
+    server = PolicyServer(
+        model,
+        PolicyServerConfig(
+            host=deploy_cfg.get("host", "127.0.0.1"),
+            port=int(deploy_cfg["port"]),
+            ws_ping_interval_s=deploy_cfg.get("ws_ping_interval_s", 20.0),
+            ws_ping_timeout_s=deploy_cfg.get("ws_ping_timeout_s", 20.0),
+        ),
+    )
     try:
-        while True:
-            time.sleep(1)
+        asyncio.run(server.serve_forever())
     except KeyboardInterrupt:
-        print("\n🛑 Shutting down server...")
-        server.stop()
-        thread.join()
+        print("\nShutting down websocket policy server...")
+
 
 def parse_args_and_config():
     """Parse CLI args and YAML config, merge overrides"""
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_path", "--config-path", dest="config_path", type=str, required=True, help="Path to config YAML")
-    parser.add_argument("--protocol", choices=("legacy_tcp", "ws"), help="Policy server protocol")
+    parser.add_argument("--protocol", choices=("ws",), help="Policy server protocol")
     parser.add_argument("--host", help="Policy server bind host")
     parser.add_argument("--port", type=int, help="Policy server bind port")
     parser.add_argument("--overrides", nargs=argparse.REMAINDER, help="Override config values")
@@ -141,7 +75,7 @@ def parse_args_and_config():
     if args.protocol is not None:
         cfg["protocol"] = args.protocol
     else:
-        cfg.setdefault("protocol", _default_protocol())
+        cfg.setdefault("protocol", "ws")
     if args.host is not None:
         cfg["host"] = args.host
     if args.port is not None:

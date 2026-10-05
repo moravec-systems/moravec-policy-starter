@@ -7,7 +7,7 @@ import threading
 from collections.abc import Coroutine
 from typing import Any
 
-from client_server.ws.protocol.client import PolicyEvalClient, PolicyEvalClientConfig
+from client_server.protocol.client import PolicyEvalClient, PolicyEvalClientConfig
 
 
 class WsModelClient:
@@ -123,7 +123,7 @@ class WsModelClient:
             self._loop.close()
 
     def call(self, func_name: str | None = None, obs: Any = None, **kwargs: Any) -> Any:
-        # Payload channel is only `obs` (legacy TCP compatibility). Extra kwargs
+        # Payload channel is only `obs`. Extra kwargs
         # such as env_idx_list=... are not forwarded — reject them loudly.
         if kwargs:
             unexpected = ", ".join(sorted(kwargs))
@@ -174,8 +174,7 @@ class WsModelClient:
         if not isinstance(func_name, str) or not func_name or func_name.startswith("_"):
             raise NotImplementedError(f"unsupported websocket model call: {func_name!r}")
 
-        # Generic model-method dispatch, matching the legacy TCP client which
-        # forwarded any func_name. This covers update_obs/update_obs_batch
+        # Public model-method dispatch covers update_obs/update_obs_batch
         # (obs / obs list), get_action (no obs), get_action_batch
         # (obs=env_idx_list), and custom public methods some policies expose
         # (e.g. Mem_0's begin_episode/step).

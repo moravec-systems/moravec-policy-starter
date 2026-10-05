@@ -37,7 +37,7 @@ ssh -N -L 6000:127.0.0.1:6000 user@policy-host
 The evaluator connects using the existing client:
 
 ```python
-from client_server.ws.model_client import WsModelClient
+from client_server.model_client import WsModelClient
 
 with WsModelClient(url="ws://127.0.0.1:6000",
                    evaluation_id="example", trial_id="trial-1") as client:

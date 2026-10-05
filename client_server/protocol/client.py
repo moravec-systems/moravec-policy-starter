@@ -13,15 +13,15 @@ from uuid import uuid4
 
 import websockets
 
-from client_server.ws.protocol.codec import decode_envelope, encode_frame
-from client_server.ws.protocol.exceptions import (
+from client_server.protocol.codec import decode_envelope, encode_frame
+from client_server.protocol.exceptions import (
     ErrorCode,
     ServerRestartedError,
     WsError,
 )
-from client_server.ws.protocol.keepalive import normalize_ws_ping
-from client_server.ws.protocol.messages import REQUEST_RESPONSE_PAIRS, MessageType
-from client_server.ws.protocol.schemas import Frame
+from client_server.protocol.keepalive import normalize_ws_ping
+from client_server.protocol.messages import REQUEST_RESPONSE_PAIRS, MessageType
+from client_server.protocol.schemas import Frame
 
 logger = logging.getLogger(__name__)
 
@@ -97,8 +97,7 @@ class PolicyEvalClientConfig:
     handshake_timeout_s: float = 60.0
     # Cold-start budget: a policy server loading a large checkpoint has not
     # opened its port yet, so the client sees connection refused and retries.
-    # 180 x 5 s = 15 min, matching the legacy TCP client so both protocols
-    # tolerate the same slow model load.
+    # 180 x 5 s = 15 min to tolerate slow model loading.
     max_connect_attempts: int = 180
     connect_retry_delay_s: float = 5.0
     # Wall-clock cap on the whole retry loop. The attempt count alone assumes

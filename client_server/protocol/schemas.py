@@ -14,8 +14,8 @@ except ImportError:  # pydantic v1
     ConfigDict = None  # type: ignore[misc, assignment]
     _PYDANTIC_V2 = False
 
-from client_server.ws.protocol.exceptions import ErrorCode, WsError
-from client_server.ws.protocol.messages import MessageType
+from client_server.protocol.exceptions import ErrorCode, WsError
+from client_server.protocol.messages import MessageType
 
 
 def _utc_now_iso() -> str:
