@@ -24,7 +24,7 @@ Use each example's README and `deploy.yml` for its dependencies, checkpoint, and
 
 The [web demo](https://moravec-evaluation-demo.vercel.app/demo) currently checks registration configuration only. It does not pull images, load weights, start evaluations, or verify model compatibility. The JSON sample is a UI fixture, not an adopted backend schema. See [Policy handoff](INTEGRATION.md#policy-handoff) for what to provide and how deployment will work.
 
-GR00T's included checkpoint is a LIBERO simulation example, not a YAM-qualified policy. Its container build and imports have been checked; learned inference inside the container still requires GPU verification. Other learned-model containers will follow.
+GR00T's included checkpoint is a LIBERO simulation example, not a YAM-qualified policy. Use the container check client to verify inference with your checkpoint. Other learned-model containers will follow.
 
 ## Hardware scope
 

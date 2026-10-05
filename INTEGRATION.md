@@ -12,7 +12,7 @@ The starter defines the policy interface and container examples. The web demo va
 - Container startup command, configuration, WebSocket port (6000 in these examples), and readiness behavior.
 - Required cameras/state, image layout, action dimensions/units/frames, trained embodiment, and any task-specific assumptions. Matching dimensions alone do not qualify a checkpoint for a robot.
 
-Use the [GR00T example](policy/GR00T_N17/README.md#container-quickstart) as a starting point and the [synthetic demo](policy/demo_policy/README.md#container-quickstart) to check transport without weights or a GPU. The supplied GR00T checkpoint targets LIBERO simulation, not YAM. The new container builds and imports successfully; GPU inference inside it remains pending.
+Use the [GR00T example](policy/GR00T_N17/README.md#container-quickstart) as a starting point and the [synthetic demo](policy/demo_policy/README.md#container-quickstart) to check transport without weights or a GPU. The supplied GR00T checkpoint targets LIBERO simulation, not YAM. Use the supplied container check client to verify inference before connecting an evaluator.
 
 ### How Moravec will pull and run it
 

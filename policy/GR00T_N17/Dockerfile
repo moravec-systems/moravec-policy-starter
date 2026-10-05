@@ -20,7 +20,7 @@ COPY . /app
 RUN python -m pip install --no-deps -e /app/policy/GR00T_N17/gr00t_n17 -e /app \
     && python -c "from moravec_policy.policy.GR00T_N17.model import Model"
 EXPOSE 6000
-# The socket opens only after model initialization. This does not test inference.
+# WebSocket opens only after model initialization. This does not test inference.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10m \
-    CMD python -c "import socket; socket.create_connection(('127.0.0.1', 6000), timeout=3).close()"
+    CMD python -c "from websockets.sync.client import connect; connect('ws://127.0.0.1:6000', open_timeout=3).close()"
 CMD ["python", "setup_policy_server.py", "--config_path", "policy/GR00T_N17/deploy.yml", "--host", "0.0.0.0"]
