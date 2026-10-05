@@ -12,7 +12,7 @@ Examples for integrating customer policies with Moravec evaluation. Each policy 
 | [Pi_05](policy/Pi_05) | Physical Intelligence π0.5 VLA |
 | [OpenWAM](policy/OpenWAM) | World-action model |
 
-Use each example's README and `deploy.yml` for its dependencies, checkpoint, and launch settings. GPU runtimes and checkpoints are installed separately. Astra currently borrows the Pi_05 Python environment; retaining that arrangement avoids changing its baseline behavior in this pass.
+Use each example's README and `deploy.yml` for its dependencies, checkpoint, and launch settings. GPU runtimes and checkpoints are installed separately. Model and agent implementations are fetched on demand with `scripts/fetch_policy.py`; they are not stored in Git. Each policy README gives its runtime setup commands.
 
 ## Hardware scope
 
@@ -52,7 +52,7 @@ The demo emits zero actions, which can command motion under absolute control. Us
 
 The restart passed four WebSocket demo checks: reset, observation update, and action retrieval for single-arm and bimanual fixtures in joint and end-effector modes. Those are transport/shape checks, not model inference, task success, or hardware qualification. Previous implementation results do not transfer to this fork.
 
-Next: connect an evaluator, verify YAM observation/action semantics, and qualify each selected policy/checkpoint in simulation. We will refine deployment packaging and any shared compatibility schema with NVIDIA from those integrations. No new station abstraction or policy protocol is introduced here.
+Next: connect an evaluator, verify YAM observation/action semantics, and qualify each selected policy/checkpoint in simulation. We will refine deployment packaging and any shared compatibility schema with NVIDIA from those integrations. No new station abstraction or policy protocol is introduced here. Training and benchmark launch scripts are excluded from this inference starter.
 
 ## Development
 

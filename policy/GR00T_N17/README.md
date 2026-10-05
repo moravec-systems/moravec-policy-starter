@@ -1,11 +1,22 @@
-# NVIDIA GR00T N1.7
+# GR00T_N17
 
-Moravec adapter for `nvidia/GR00T-N1.7-3B`. The model implementation is in `gr00t_n17/`; the adapter and deployment configuration are at this folder's root.
+Moravec policy adapter. `model.py` converts observations and actions; `deploy.yml` selects checkpoint and serving settings. The model implementation is downloaded during setup and is not tracked in this repository.
 
-Read [INSTALLATION.md](INSTALLATION.md) for the GPU runtime and checkpoint prerequisites. Run `bash install.sh` from this directory to install the policy runtime. The runtime uses `gr00t_n17/.venv`.
+## Setup
 
-Configure `deploy.yml` with a checkpoint and matching environment configuration before serving. The checkpoint's embodiment, camera mapping, action dimensions, and normalization must match the evaluator. Adding YAM dimensions alone does not make a pretrained checkpoint compatible with YAM.
+On a compatible Linux NVIDIA GPU host, fetch with Python 3.12+, then create the model's Python 3.10 environment:
 
-Use the [integration guide](../../INTEGRATION.md#remote-serving) to launch the Python server locally or remotely. Training and data-conversion scripts are retained as optional upstream utilities; they are not prerequisites when using a compatible prepared checkpoint.
+```sh
+python scripts/fetch_policy.py GR00T_N17
+uv venv --python 3.10 policy/GR00T_N17/gr00t_n17/.venv
+cd policy/GR00T_N17/gr00t_n17
+uv pip install --python .venv/bin/python -e . -e ../../..
+```
 
-The current shared demo validates transport only. This fork still requires real-checkpoint simulation qualification.
+This preserves the previous platform-specific editable installation approach. Checkpoint access, CUDA compatibility, and a matching modality configuration under `configs/` are still required. Source fetching is verified separately from GPU installation.
+
+## Serving
+
+Activate the model runtime, then use the shared Python server from the repository root as described in the [integration guide](../../INTEGRATION.md#remote-serving). Weights are separate downloads. Training and benchmark orchestration are outside this starter's scope.
+
+The [source manifest](../../scripts/fetch_policy.py) pins the exact implementation snapshot used by this adapter. The current shared demo validates transport only; real-checkpoint simulation qualification remains outstanding.

@@ -17,7 +17,7 @@ For our bimanual joint examples, actions use `left_arm_joint_state`, `right_arm_
 
 `deploy.yml` selects the policy, host, port, action type, environment configuration, and model-specific checkpoint settings. Install the core with `python -m pip install -e .`; follow the model README for its separate runtime and weights.
 
-The Python import namespace is still `XPolicyLab`. Some evaluator scripts also require a workspace with this checkout named `XPolicyLab/` beside `env_cfg/`. These names are retained compatibility requirements, not a second package to install. Runtime helpers load robot dimensions and simulator batch size from that neighboring configuration. For YAM, copy the local `utils/robot/_robot_info.json` entry into the evaluator registry and supply its environment configuration.
+The Python import namespace is still `XPolicyLab`. External evaluators may require a workspace with this checkout named `XPolicyLab/` beside `env_cfg/`. These names are retained compatibility requirements, not a second package to install. Runtime helpers load robot dimensions and simulator batch size from that neighboring configuration. For YAM, copy the local `utils/robot/_robot_info.json` entry into the evaluator registry and supply its environment configuration.
 
 ## Remote serving
 
@@ -60,4 +60,4 @@ This creates a temporary evaluator layout and local WebSocket server. Six cases 
 
 Copy `policy/demo_policy/` and set `policy_name` in `deploy.yml` to the new folder name. Implement preprocessing, inference, and action conversion in `model.py`. Document required cameras, state, units, frames, checkpoint, and trained embodiment. The evaluator owns simulation, physical control, and scoring.
 
-Use the Python server plus YAML as the primary serving entry point. Existing shell scripts mainly install dependencies, activate separate environments, and orchestrate evaluator processes; they are optional for serving an already-configured model directly. Their benchmark-specific paths remain compatibility details. Keep weights, credentials, and run outputs outside Git.
+Use the Python server plus YAML as the primary serving entry point. Training and shell launch wrappers are not included. Fetch model source with `python scripts/fetch_policy.py <policy>` using Python 3.12+, then install its runtime following its README. Downloads use a pinned source revision and land in ignored directories; weights are separate. Keep weights, credentials, and run outputs outside Git.

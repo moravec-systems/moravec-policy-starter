@@ -1,9 +1,22 @@
 # Pi_05
 
-Moravec adapter for Physical Intelligence π0.5. The model implementation is in `openpi/`; inference configuration is in `deploy.yml` and preprocessing is in `model.py`.
+Moravec policy adapter. `model.py` converts observations and actions; `deploy.yml` selects checkpoint and serving settings. The model implementation is downloaded during setup and is not tracked in this repository.
 
-Run `bash install.sh` from this directory to prepare the model-specific runtime. Follow the [model documentation](openpi/README.md) for runtime and checkpoint requirements. Configure the checkpoint path, training configuration, normalization assets, and environment in `deploy.yml` to match the chosen checkpoint; the bundled defaults are an example, not a YAM-trained model.
+## Setup
 
-Serve with the shared Python entry point described in the [integration guide](../../INTEGRATION.md#remote-serving). Data conversion and training scripts are optional retained utilities. The adapter maps evaluator observations into the checkpoint's inputs and converts predictions back into robot actions.
+Fetch with Python 3.12+, then prepare OpenPI's own runtime:
 
-The current shared demo validates transport only. This fork still requires real-checkpoint simulation qualification.
+```sh
+python scripts/fetch_policy.py Pi_05
+cd policy/Pi_05/openpi
+GIT_LFS_SKIP_SMUDGE=1 uv sync --group lerobot
+uv pip install --python .venv/bin/python -e . -e ../../..
+```
+
+Configure the checkpoint, training configuration, normalization assets, and environment in `deploy.yml`. The defaults are not a YAM-trained checkpoint. Source fetching is verified separately from GPU installation.
+
+## Serving
+
+Activate the model runtime, then use the shared Python server from the repository root as described in the [integration guide](../../INTEGRATION.md#remote-serving). Weights are separate downloads. Training and benchmark orchestration are outside this starter's scope.
+
+The [source manifest](../../scripts/fetch_policy.py) pins the exact implementation snapshot used by this adapter. The current shared demo validates transport only; real-checkpoint simulation qualification remains outstanding.

@@ -39,7 +39,7 @@ from XPolicyLab.utils.checkpoint_resolver import resolve_checkpoint_root
 from XPolicyLab.utils.process_data import get_robot_action_dim_info
 
 POLICY_DIR = Path(__file__).resolve().parent
-# Vendored OpenWAM source tree (weights excluded).
+# Downloaded OpenWAM source tree (weights excluded).
 VENDORED_OPENWAM_ROOT = POLICY_DIR / "OpenWAM"
 CHECKPOINTS_DIR = POLICY_DIR / "checkpoints"
 

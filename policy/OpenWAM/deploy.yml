@@ -5,7 +5,7 @@ protocol: ws
 # engine.generate_batch forward pass.
 eval_batch: true
 
-# Server transport: overridden by setup_eval_policy_server.sh per launch.
+# Server transport: set for the policy host.
 port: null
 host: localhost
 
@@ -19,8 +19,8 @@ action_dim: null
 seed: 42
 gpu_id: null
 
-# --- OpenWAM-specific keys (resolved in setup_eval_policy_server.sh) ---
-# OpenWAM source root. null -> the vendored copy at policy/OpenWAM/OpenWAM/.
+# --- OpenWAM-specific keys (resolved by model.py) ---
+# OpenWAM source root. null -> the downloaded copy at policy/OpenWAM/OpenWAM/.
 openwam_root: null
 # Checkpoint dir containing config.yaml + checkpoint_step_*.safetensors
 # + normalization_stats.npy (+ tokenizer/). null -> XPolicyLab checkpoints/

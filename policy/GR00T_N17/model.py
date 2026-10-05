@@ -33,7 +33,7 @@ def _load_modality_config(env_cfg_type: str) -> None:
     config_path = _POLICY_DIR / "configs" / f"{env_cfg_type}_config.py"
     if not config_path.is_file():
         raise FileNotFoundError(
-            f"Modality config not found: {config_path}. Run process_data.sh for env_cfg_type={env_cfg_type} first."
+            f"Modality config not found: {config_path}. Supply a checkpoint-compatible modality configuration for env_cfg_type={env_cfg_type}."
         )
     spec = importlib.util.spec_from_file_location(f"gr00t_modality_{env_cfg_type}", config_path)
     if spec is None or spec.loader is None:

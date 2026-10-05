@@ -37,3 +37,9 @@ MUJOCO_LOG.TXT
 
 # Local editor settings
 **/.vscode/
+
+# Pinned model and agent implementations downloaded during setup
+/policy/GR00T_N17/gr00t_n17/
+/policy/Pi_05/openpi/
+/policy/OpenWAM/OpenWAM/
+/policy/GPT_6_Astra_Direct_EEF/inspect/
