@@ -1,22 +1,26 @@
-[project]
-name = "moravec-policy-starter"
-version = "0.5.0"
-description = "Versioned policy contracts and source-pinned robot model examples"
-requires-python = ">=3.10"
-dependencies = ["pydantic>=2.10,<3", "numpy>=1.26,<3", "fastapi>=0.115,<1", "uvicorn>=0.34,<1", "httpx>=0.28,<1", "pillow>=11,<13", "msgpack>=1.1,<2", "scipy>=1.14,<2", "websockets>=15,<16"]
-[project.scripts]
-moravec-policy = "moravec_policy.cli:main"
-[project.optional-dependencies]
-sim = ["mujoco>=3.3,<4", "imageio>=2.37,<3", "imageio-ffmpeg>=0.6,<1"]
-
-[dependency-groups]
-dev = ["pytest>=8,<9", "ruff>=0.11,<1"]
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-[tool.ruff]
-line-length = 100
-[tool.hatch.build.targets.wheel]
-packages = ["src/moravec_policy"]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xpolicylab"
+version = "0.0.1"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.23",
+    "pyyaml>=6",
+    "opencv-python-headless>=4.8",
+    "h5py>=3.8",
+    "websockets>=14.0",
+    "msgpack>=1.0.8",
+    "msgpack-numpy>=0.4.8",
+    "pydantic>=2.5",
+]
+
+[tool.setuptools]
+py-modules = ["XPolicyLab"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["client_server*", "utils*"]
+exclude = ["policy*", "build*", "scripts*", "__pycache__*", "tests*"]
