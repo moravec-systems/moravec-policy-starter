@@ -11,8 +11,9 @@ Examples for integrating customer policies with Moravec evaluation. Each policy 
 | [GR00T_N17](policy/GR00T_N17) | NVIDIA GR00T VLA |
 | [Pi_05](policy/Pi_05) | Physical Intelligence π0.5 VLA |
 | [OpenWAM](policy/OpenWAM) | World-action model |
+| [MolmoAct2](policy/MolmoAct2) | Ai2 BimanualYAM VLA; absolute joint actions |
 
-Use each example's README and `deploy.yml` for its dependencies, checkpoint, and launch settings. GPU runtimes and checkpoints are installed separately. Model and agent implementations are fetched on demand with `scripts/fetch_policy.py`; they are not stored in Git. Each policy README gives its runtime setup commands.
+Use each example's README and `deploy.yml` for its dependencies, checkpoint, and launch settings. GPU runtimes and checkpoints are installed separately. Model and agent implementations are fetched on demand with `scripts/fetch_policy.py` or, for MolmoAct2, as part of its pinned Hugging Face snapshot; they are not stored in Git. Each policy README gives its runtime setup commands.
 
 ## Hardware scope
 
