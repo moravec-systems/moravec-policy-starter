@@ -33,4 +33,4 @@ docker exec moravec-astra python policy/GPT_6_Astra_Direct_EEF/check_client.py
 docker stop moravec-astra
 ```
 
-The check sends one synthetic scene (a red block on a grey table) through the shared protocol, which makes one paid `gpt-6-astra` request, and validates the returned end-effector chunk. It executes no actions and does not establish task success. Override `scene_notes` for your evaluator by mounting a deployment YAML and passing `--config_path`.
+The check sends one synthetic scene (a red block on a grey table) through the shared protocol, which makes one paid `gpt-6-astra` request, and validates the returned end-effector chunk. It executes no actions and does not establish task success. Override `scene_notes` for your evaluator by mounting a deployment YAML and overriding the default command with `python setup_policy_server.py --config_path /config/deploy.yml --host 0.0.0.0`.

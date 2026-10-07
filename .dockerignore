@@ -10,9 +10,7 @@
 !client_server/**
 !utils/
 !utils/**
-!policy/
 !policy/__init__.py
-!policy/*/
 !policy/*/*.py
 !policy/*/deploy.yml
 !policy/*/README.md
