@@ -34,13 +34,12 @@ import numpy as np
 import openwam
 
 from moravec_policy.model_template import ModelTemplate
-from moravec_policy.utils.checkpoint_resolver import resolve_checkpoint_root
+from moravec_policy.utils.paths import resolve_policy_path
 from moravec_policy.utils.process_data import get_robot_action_dim_info
 
 POLICY_DIR = Path(__file__).resolve().parent
 # Editable install of the OpenWAM checkout; its configs/ hold the deploy defaults.
 OPENWAM_ROOT = Path(openwam.__file__).resolve().parents[1]
-CHECKPOINTS_DIR = POLICY_DIR / "checkpoints"
 
 _EXPECTED_ARM_DIMS = [6, 6]
 _EXPECTED_EE_DIMS = [1, 1]
@@ -68,25 +67,6 @@ def _is_none_like(value: Any) -> bool:
     if value is None:
         return True
     return isinstance(value, str) and value.strip().lower() in {"", "none", "null"}
-
-
-def _resolve_ckpt_dir(model_cfg: dict) -> Path:
-    """Resolve the OpenWAM checkpoint directory via the shared moravec_policy rules.
-
-    Precedence: explicit ``ckpt_dir`` / path-like ``ckpt_name`` >
-    ``checkpoints/<bench>-<ckpt>-<env>-<action>-<seed>/`` >
-    ``checkpoints/<ckpt_name>/``. The directory must contain ``config.yaml``.
-    """
-    root = resolve_checkpoint_root(
-        model_cfg,
-        CHECKPOINTS_DIR,
-        policy_dir=POLICY_DIR,
-        explicit_keys=("ckpt_dir", "checkpoint_path", "ckpt_path", "model_dir"),
-        must_exist=True,
-    )
-    if not (root / "config.yaml").is_file():
-        raise FileNotFoundError(f"checkpoint dir has no config.yaml: {root}")
-    return root
 
 
 def _decode_instruction(value: Any, fallback: str) -> str:
@@ -193,7 +173,9 @@ class Model(ModelTemplate):
             print("[OpenWAM] allow_dummy_policy=true; checkpoint loading skipped (protocol debug only).")
             return
 
-        ckpt_dir = str(_resolve_ckpt_dir(self.model_cfg))
+        ckpt_dir = resolve_policy_path(POLICY_DIR, self.model_cfg["ckpt_dir"])
+        if not (ckpt_dir / "config.yaml").is_file():
+            raise FileNotFoundError(f"No OpenWAM checkpoint (config.yaml) in {ckpt_dir}")
 
         # OpenWAM's own deploy defaults; the correctness-critical keys are
         # force-overridden below, so no separate pinned eval yaml is needed.
@@ -215,7 +197,7 @@ class Model(ModelTemplate):
         OmegaConf.update(deploy_cfg, "inference.inference_mode", "sync", merge=False)
 
         print(f"[OpenWAM] loading checkpoint from {ckpt_dir} on {device} ...")
-        server = build_server_from_config(deploy_cfg, ckpt_dir, device=device)
+        server = build_server_from_config(deploy_cfg, str(ckpt_dir), device=device)
         server._init_policy()
         self._engine = server.engine
         self._binary_dims = tuple(getattr(self._engine.architecture, "binary_command_dims", ()) or ())

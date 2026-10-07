@@ -25,7 +25,6 @@ packages = [
     "moravec_policy.policy.demo_policy",
     "moravec_policy.policy.GPT_6_Astra_Direct_EEF",
     "moravec_policy.policy.GR00T_N17",
-    "moravec_policy.policy.GR00T_N17.configs",
     "moravec_policy.policy.Pi_05",
     "moravec_policy.policy.OpenWAM",
     "moravec_policy.policy.MolmoAct2",

@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
-import sys
 from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
@@ -24,18 +23,6 @@ from client_server.protocol.messages import REQUEST_RESPONSE_PAIRS, MessageType
 from client_server.protocol.schemas import Frame
 
 logger = logging.getLogger(__name__)
-
-_RED = "\033[31m"
-_GREEN = "\033[32m"
-_BLUE = "\033[34m"
-_YELLOW = "\033[33m"
-_BOLD = "\033[1m"
-_RESET = "\033[0m"
-
-
-def _status(level: str, color: str, message: str) -> None:
-    print(f"{color}{_BOLD}[{level}]{_RESET} {message}", flush=True)
-
 
 def _body_with(
     field: str, value: str, extra: Mapping[str, Any] | None
@@ -153,33 +140,18 @@ class PolicyEvalClient:
     _recv_task: asyncio.Task[None] | None = field(default=None, init=False)
     _pending: dict[str, asyncio.Future[Frame]] = field(default_factory=dict, init=False)
     _closed: bool = field(default=False, init=False)
-    _evaluation_plan: dict[str, Any] | None = field(default=None, init=False)
     _server_instance_id: str | None = field(default=None, init=False)
 
-    async def _sleep_with_countdown(self, seconds: float, label: str) -> None:
+    async def _sleep_unless_closed(self, seconds: float) -> None:
         # Keep fractional delays intact: truncating 0.5 s to 0 would turn the
         # connect-retry loop into a hot loop hammering the server.
-        if seconds <= 0:
-            return
-        interactive = sys.stdout.isatty()
-        if not interactive:
-            # Avoid flooding redirected logs with carriage-return updates.
-            _status("RECONNECT", _YELLOW, f"{label}; retry in {seconds:g}s")
         # Sleep in <=1 s slices so close() interrupts the wait promptly
         # instead of the retry loop napping through a full delay.
         remaining = seconds
         while remaining > 0 and not self._closed:
-            if interactive:
-                print(
-                    f"\r{_YELLOW}{_BOLD}[RECONNECT]{_RESET} {label}; retry in {remaining:4.1f}s",
-                    end="",
-                    flush=True,
-                )
             step = min(1.0, remaining)
             await asyncio.sleep(step)
             remaining -= step
-        if interactive:
-            print("\r" + " " * 96 + "\r", end="", flush=True)
 
     async def _close_ws(self, ws: WebSocketConnection) -> None:
         """Close one connection without letting an unresponsive peer hang us.
@@ -231,12 +203,7 @@ class PolicyEvalClient:
                 "client closed while a connect attempt was in flight"
             )
 
-    async def connect(
-        self,
-        *,
-        handshake: bool = True,
-        evaluation_plan: Mapping[str, Any] | dict[str, Any] | None = None,
-    ) -> Frame | None:
+    async def connect(self, *, handshake: bool = True) -> Frame | None:
         if self._ws is not None:
             return None
         # close() is terminal: do NOT clear _closed here. Clearing it would
@@ -270,12 +237,6 @@ class PolicyEvalClient:
                 # background reconnect after the caller gave up); stop
                 # hammering the server instead of retrying for minutes.
                 raise ConnectionError("client closed; aborting connect retries")
-            _status(
-                "CONNECTING",
-                _BLUE,
-                f"websocket policy server {self.config.url} "
-                f"(attempt {attempt}/{self.config.max_connect_attempts}, timeout={self.config.connect_timeout_s:g}s)",
-            )
             try:
                 self._ws = await asyncio.wait_for(
                     websockets.connect(
@@ -287,9 +248,8 @@ class PolicyEvalClient:
                 self._recv_task = asyncio.create_task(self._recv_loop(self._ws))
                 self._raise_if_closed_during_connect()
                 logger.info("websocket connected: %s", self.config.url)
-                _status("CONNECTED", _GREEN, f"websocket policy server connected: {self.config.url}")
                 if handshake:
-                    ack = await self.hello(evaluation_plan=evaluation_plan)
+                    ack = await self.hello()
                     self._check_server_identity(ack)
                     self._raise_if_closed_during_connect()
                     return ack
@@ -317,23 +277,21 @@ class PolicyEvalClient:
                     )
                     break
                 # During policy cold-start the port may not be ready yet. Keep
-                # this quiet unless debug logging is enabled; the final failure
-                # below is the actionable communication error.
+                # the traceback quiet unless debug logging is enabled; the
+                # final failure below is the actionable communication error.
                 logger.debug("connect attempt %s failed", attempt, exc_info=True)
-                _status(
-                    "WAITING",
-                    _YELLOW,
-                    "policy server not ready "
-                    f"(attempt {attempt}/{self.config.max_connect_attempts}): {_compact_exception(exc)}",
+                # Printed rather than logged: a model can take minutes to load,
+                # and this line is the evaluator's only sign of progress.
+                print(
+                    f"policy server {self.config.url} not ready "
+                    f"(attempt {attempt}/{self.config.max_connect_attempts}): "
+                    f"{_compact_exception(exc)}; retrying in {self.config.connect_retry_delay_s:g}s",
+                    flush=True,
                 )
-                await self._sleep_with_countdown(
-                    self.config.connect_retry_delay_s,
-                    f"reconnecting to {self.config.url}",
-                )
+                await self._sleep_unless_closed(self.config.connect_retry_delay_s)
         give_up = f"after {attempt} attempts"
         if deadline is not None and asyncio.get_running_loop().time() >= deadline:
             give_up += f" / {self.config.max_connect_seconds:g}s"
-        _status("ERROR", _RED, f"failed to connect to {self.config.url} {give_up}")
         raise ConnectionError(
             f"failed to connect {give_up}: {last_err}"
         ) from last_err
@@ -463,12 +421,12 @@ class PolicyEvalClient:
                 # retry budget just to say goodbye would be absurd. No
                 # connection means there is nothing to close.
                 raise RuntimeError("not connected; nothing to close")
-            _status(
-                "RECONNECT",
-                _YELLOW,
-                f"connection to {self.config.url} is closed; reconnecting before {msg_type.value}",
+            logger.warning(
+                "connection to %s is closed; reconnecting before %s",
+                self.config.url,
+                msg_type.value,
             )
-            await self.connect(handshake=True, evaluation_plan=self._evaluation_plan)
+            await self.connect(handshake=True)
 
         # Retries of the same logical request MUST reuse the request_id: the
         # server keeps a response cache keyed by it, so a retried request that
@@ -501,9 +459,13 @@ class PolicyEvalClient:
         except Exception:
             self._pending.pop(request_id, None)
             if not _reconnect_attempted and not self._closed and msg_type != MessageType.HELLO:
-                _status("RECONNECT", _YELLOW, f"send failed for {msg_type.value}; reconnecting to {self.config.url}")
+                logger.warning(
+                    "send failed for %s; reconnecting to %s",
+                    msg_type.value,
+                    self.config.url,
+                )
                 await self._reset_connection_state()
-                await self.connect(handshake=True, evaluation_plan=self._evaluation_plan)
+                await self.connect(handshake=True)
                 return await self.request(
                     msg_type,
                     payload,
@@ -536,12 +498,12 @@ class PolicyEvalClient:
         except Exception:
             self._pending.pop(request_id, None)
             if self._ws is None and not _reconnect_attempted and not self._closed and msg_type != MessageType.HELLO:
-                _status(
-                    "RECONNECT",
-                    _YELLOW,
-                    f"connection dropped while waiting for {msg_type.value}; reconnecting to {self.config.url}",
+                logger.warning(
+                    "connection dropped while waiting for %s; reconnecting to %s",
+                    msg_type.value,
+                    self.config.url,
                 )
-                await self.connect(handshake=True, evaluation_plan=self._evaluation_plan)
+                await self.connect(handshake=True)
                 return await self.request(
                     msg_type,
                     payload,
@@ -561,18 +523,9 @@ class PolicyEvalClient:
             )
         return response
 
-    async def hello(
-        self,
-        *,
-        evaluation_plan: Mapping[str, Any] | dict[str, Any] | None = None,
-    ) -> Frame:
-        payload: dict[str, Any] = {}
-        if evaluation_plan is not None:
-            # Remember the plan so automatic reconnects can replay the handshake.
-            self._evaluation_plan = dict(evaluation_plan)
-            payload["evaluation_plan"] = self._evaluation_plan
+    async def hello(self) -> Frame:
         return await self.request(
-            MessageType.HELLO, payload, timeout_s=self.config.handshake_timeout_s
+            MessageType.HELLO, {}, timeout_s=self.config.handshake_timeout_s
         )
 
     async def prepare_case(
@@ -623,24 +576,6 @@ class PolicyEvalClient:
         return await self.request(
             MessageType.CALL,
             payload,
-            trial_id=trial_id,
-            action_case_id=action_case_id,
-            repeat_index=repeat_index,
-            step=step,
-        )
-
-    async def infer(
-        self,
-        observation: dict[str, Any],
-        *,
-        trial_id: str | None = None,
-        action_case_id: str | None = None,
-        repeat_index: int | None = None,
-        step: int = 0,
-    ) -> Frame:
-        return await self.request(
-            MessageType.INFER,
-            {"observation": observation},
             trial_id=trial_id,
             action_case_id=action_case_id,
             repeat_index=repeat_index,

@@ -35,7 +35,7 @@ Each `policy/<name>/model.py` exposes `Model(model_cfg)` with:
 - `get_action()`: return an ordered list of action dictionaries.
 - Optional `update_obs_batch(obs_list)` and `get_action_batch(env_idx_list=None)` for adapters that support batching.
 
-Observations carry an instruction, named cameras under `vision`, and robot state under `state`. The demo roundtrip shows three RGB cameras and joint state. That is an example, not a universal model requirement: use the selected policy's documented camera and state mapping. Images are decoded at the server boundary by the existing image utilities. GR00T's `io_format: native` deliberately preserves its checkpoint-specific `video`, `state`, and `language` dictionaries; see its example for the LIBERO mapping.
+Observations carry an instruction, named cameras under `vision`, and robot state under `state`. The demo roundtrip shows three RGB cameras and joint state. That is an example, not a universal model requirement: use the selected policy's documented camera and state mapping. Images are decoded at the server boundary by the existing image utilities. GR00T instead takes its checkpoint's native `video`, `state`, and `language` dictionaries; see its example for the LIBERO mapping.
 
 For our bimanual joint examples, actions use `left_arm_joint_state`, `right_arm_joint_state`, `left_ee_joint_state`, and `right_ee_joint_state`. End-effector examples replace arm joint arrays with `left_ee_pose` and `right_ee_pose`; the demo uses `[x, y, z, qw, qx, qy, qz]`. Coordinate frames and absolute/delta interpretation must agree with the checkpoint and evaluator. The evaluator executes action chunks and supplies subsequent observations.
 
