@@ -20,3 +20,17 @@ python setup_policy_server.py --config_path policy/GPT_6_Astra_Direct_EEF/deploy
 - Actions: `action_type: ee` chunks with the same four keys. The evaluator performs inverse kinematics.
 
 Each call to `get_action` is one model request, so latency is seconds, not milliseconds. Model output is not deterministic.
+
+## Container
+
+A CPU-only image of the same policy server. From the repository root:
+
+```sh
+docker build -f policy/GPT_6_Astra_Direct_EEF/Dockerfile -t moravec-astra:demo .
+# OPENAI_API_KEY must already be exported in your shell; it is passed at runtime only.
+docker run -d --rm --name moravec-astra -p 127.0.0.1:6000:6000 -e OPENAI_API_KEY moravec-astra:demo
+docker exec moravec-astra python policy/GPT_6_Astra_Direct_EEF/check_client.py
+docker stop moravec-astra
+```
+
+The check sends one synthetic scene (a red block on a grey table) through the shared protocol, which makes one paid `gpt-6-astra` request, and validates the returned end-effector chunk. It executes no actions and does not establish task success. Override `scene_notes` for your evaluator by mounting a deployment YAML and passing `--config_path`.

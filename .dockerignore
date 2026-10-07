@@ -26,3 +26,7 @@
 !policy/GR00T_N17/requirements.lock
 !policy/GR00T_N17/Dockerfile
 !policy/demo_policy/Dockerfile
+
+# Per-policy container recipes and pinned runtime dependencies.
+!policy/*/Dockerfile
+!policy/*/requirements.lock
