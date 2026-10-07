@@ -71,7 +71,7 @@ def build(station: Path = STATION) -> mujoco.MjModel:
         spec.add_actuator(name=f"{arm}_gripper", target=f"{arm}_joint7", trntype=mujoco.mjtTrn.mjTRN_JOINT,
                           gaintype=mujoco.mjtGain.mjGAIN_FIXED, biastype=mujoco.mjtBias.mjBIAS_AFFINE,
                           gainprm=[800] + [0] * 9, biasprm=[0, -800, -20] + [0] * 7,
-                          ctrlrange=[0, GRIPPER_TRAVEL], ctrllimited=True, forcerange=[-30, 30], forcelimited=True)
+                          ctrlrange=[0, GRIPPER_TRAVEL], ctrllimited=True, forcerange=[-80, 80], forcelimited=True)
         # The welded base touches link1 at rest; MuJoCo only filters parent/child pairs below the root.
         for link in ("link1", "link2"):
             spec.add_exclude(bodyname1=f"{arm}_base", bodyname2=f"{arm}_{link}")
@@ -79,7 +79,17 @@ def build(station: Path = STATION) -> mujoco.MjModel:
             for geom in spec.body(f"{arm}_{tip}").geoms:
                 geom.friction = [1.5, 0.01, 0.001]
                 geom.condim = 4
-    return spec.compile()
+    model = spec.compile()
+    # Grasp-friendly contact: MuJoCo's soft defaults let a pinched block slip out
+    # of the fingertips. Tested to hold a 4 cm cube with up to ~1 cm of misalignment.
+    model.opt.cone = mujoco.mjtCone.mjCONE_ELLIPTIC
+    model.opt.impratio = 10
+    model.opt.noslip_iterations = 5
+    for g in range(model.ngeom):
+        model.geom_friction[g, 0] = max(model.geom_friction[g, 0], 2.0)
+        model.geom_solref[g] = [0.005, 1]
+        model.geom_solimp[g] = [0.95, 0.99, 0.001, 0.5, 2]
+    return model
 
 
 class YamTabletop:
