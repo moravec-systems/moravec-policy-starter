@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # Build from the repository root for a Linux x86_64 NVIDIA GPU host.
-FROM python:3.12.12-slim-bookworm
+# openpi targets Python 3.11 (its .python-version); its lock has no 3.12 wheel for mujoco.
+FROM python:3.11.14-slim-bookworm
 COPY --from=ghcr.io/astral-sh/uv:0.9.21 /uv /usr/local/bin/uv
 ENV PYTHONUNBUFFERED=1 UV_NO_CACHE=1 UV_PYTHON_DOWNLOADS=never \
     UV_PROJECT_ENVIRONMENT=/opt/venv PATH="/opt/venv/bin:$PATH" \
