@@ -11,13 +11,6 @@ runs/
 Log/
 logs/
 
-# H_RDT local artifacts and large model assets
-policy/H_RDT/.cache/
-policy/H_RDT/H_RDT/.cache/
-policy/H_RDT/H_RDT/t5-v1_1-xxl/
-policy/H_RDT/**/logs/
-policy/H_RDT/**/wandb/
-
 # Local Moravec credentials and evaluation artifacts
 .env
 .env.*
@@ -39,7 +32,6 @@ MUJOCO_LOG.TXT
 **/.vscode/
 
 # Pinned model sources cloned during setup
-/policy/GR00T_N17/gr00t_n17/
 /policy/Pi_05/openpi/
 /policy/OpenWAM/OpenWAM/
 

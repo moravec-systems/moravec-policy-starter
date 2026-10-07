@@ -13,4 +13,8 @@ max_chunk: 100
 gripper_dwell_steps: 10
 # Describe the world frame and workspace so the model can name positions.
 scene_notes: >-
-  World frame: +z is up and the table surface is at z = 0. The left arm is on the -x side.
+  ARX X5 world frame: +z is up and the table top is at z = 0.765. Arm bases are at
+  left (-0.30, -0.45, 0.765) and right (0.30, -0.45, 0.765); reach is about 0.8 m.
+  Positions are the wrist flange, not the fingertips: the fingertip centre is 0.15 m
+  further along the gripper's pointing direction (straight down for top-down grasps),
+  so to grasp an object at height h put the flange at z = h + 0.15.

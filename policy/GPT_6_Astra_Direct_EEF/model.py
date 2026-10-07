@@ -23,7 +23,7 @@ ARMS = ("left", "right")
 
 INSTRUCTIONS = """You control a bimanual robot. Each turn you receive the task, camera
 images, and each arm's current end-effector state. Respond by calling move_eef
-for one or both arms; each call moves that arm's gripper to an absolute
+for one or both arms; each call moves that arm's end effector to an absolute
 world-frame position (metres) and sets its gripper opening (0 closed, 1 open).
 Orientation is held. After the motion you receive new images and state.
 Approach objects from above, then descend, then close the gripper in a separate
