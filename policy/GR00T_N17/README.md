@@ -39,7 +39,6 @@ Native observations follow the checkpoint's `video`, `state`, and `language` sch
 This example targets a Linux x86_64 NVIDIA GPU host with Docker and the NVIDIA
 Container Toolkit. It uses the LIBERO checkpoint above; it does not establish
 YAM compatibility. Internet access is allowed for model downloads in this demo.
-Other examples use their documented Python environments; containers will follow.
 
 Build from the repository root:
 

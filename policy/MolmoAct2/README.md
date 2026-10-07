@@ -47,6 +47,60 @@ Defaults use CUDA with bfloat16 and 10 flow-solver steps. CPU/MPS require `devic
 
 Use the existing [WebSocket client](../../INTEGRATION.md#remote-serving). The evaluator owns action execution and scoring. This adapter does not provide a YAM simulator or establish physical task success.
 
+## Container
+
+Build from the repository root on a Linux NVIDIA GPU host. The image pins Python
+and all Python dependencies; weights and credentials are mounted at runtime.
+
+```sh
+docker build --platform linux/amd64 -f policy/MolmoAct2/Dockerfile \
+  -t moravec-molmoact2:demo .
+docker volume create moravec-molmoact2-weights
+docker volume create moravec-molmoact2-cache
+docker run --rm -e HF_TOKEN \
+  -v moravec-molmoact2-weights:/weights \
+  -v moravec-molmoact2-cache:/cache/huggingface \
+  moravec-molmoact2:demo \
+  hf download allenai/MolmoAct2-BimanualYAM \
+    --revision 8dcbed66f2380e4393189c303ea72488eb9e63c2 \
+    --local-dir /weights/BimanualYAM
+```
+
+`HF_TOKEN` is optional for this public snapshot; if needed, set it in your host
+environment. Never put credentials in build arguments or the image. The download
+includes the pinned executable checkpoint source, which is loaded with
+`trust_remote_code=True` as described above.
+
+Set `MORAVEC_ENV_CFG` to the absolute path of your evaluator's `env_cfg/`, containing
+`yam.yml` (`config.robot: yam`) and `robot/_robot_info.json` with the YAM dimensions
+described above. The runtime resolves this directory at `/env_cfg` beside `/app`.
+
+```sh
+docker run --rm --name moravec-molmoact2 --gpus all --shm-size=2g \
+  -p 127.0.0.1:6000:6000 \
+  -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
+  -v moravec-molmoact2-weights:/app/policy/MolmoAct2/checkpoints:ro \
+  -v moravec-molmoact2-cache:/cache/huggingface \
+  --mount "type=bind,src=${MORAVEC_ENV_CFG:?Set MORAVEC_ENV_CFG},dst=/env_cfg,readonly" \
+  moravec-molmoact2:demo
+```
+
+Inspect initialization with `docker logs moravec-molmoact2`. A healthy container
+means its WebSocket is listening after model loading. From another terminal,
+request an action using the image's client:
+
+```sh
+docker exec moravec-molmoact2 python policy/MolmoAct2/check_client.py
+```
+
+The check sends three synthetic RGB images and a 14-D joint state through the
+shared protocol to the loaded checkpoint, then validates its 30-step action
+chunk. It does not execute actions or establish task performance. Use
+`--expected-steps N` if serving with a different `actions_per_chunk`. Real
+simulation requires a separately calibrated YAM evaluator; this image supplies
+the policy server only. Stop it with `docker stop moravec-molmoact2`.
+
+
 ## Sources
 
 Inference uses [Ai2's YAM example](https://github.com/allenai/molmoact2/blob/6070080a20321b4f498ab30f28e1d09ac465edb7/examples/yam/host_server_yam.py) and the pinned checkpoint's model card/source. Adapter attribution is in [third-party notices](../../THIRD_PARTY.md). Training is outside this example's scope.
