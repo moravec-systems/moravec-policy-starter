@@ -1,25 +1,39 @@
 # GPT-6 Astra
 
-LLM agent example using OpenAI model `gpt-6-astra` through the Responses API. It runs in the shared policy server like every other example: the evaluator sends observations and executes the returned action chunks.
+LLM agent example using OpenAI model `gpt-6-astra` through the Responses API, following the design of the RoboProbe inspect agent. It runs in the shared policy server like every other example: the evaluator sends observations and executes the returned end-effector action chunks.
 
-Each `get_action` call sends the instruction, every camera image, and both arms' end-effector state. The model answers with one or more `move_eef` tool calls, each naming an arm, an absolute world-frame position, and a gripper opening (0 closed, 1 open). `model.py` turns those goals into an end-effector action chunk: positions are interpolated at most `max_step_m` per env step, orientation is held, and the gripper changes once the arm arrives and is held for `gripper_dwell_steps`. The conversation continues across calls with `previous_response_id`, one conversation per environment, until `reset`.
+## How it works
+
+Each turn sends the goal, every camera image (labelled with its name and step), and both arms' grasp-point state named exactly as the tool takes it: `left_x/y/z` in metres, `left_pitch_deg/roll_deg/yaw_deg` measured from a straight-down grasp (so `yaw_deg` turns the jaws), and `left_gripper` (0 closed, 1 open), likewise for `right_`. After a move it also reports how far the arm landed from the target ("left 10 mm and 0.0 deg away") and, if the evaluator sends `remaining_steps`, the env steps left.
+
+The model must answer with exactly one tool call:
+
+- `move_eef(targets, note)`: name only the dimensions to change; the rest hold. Both arms move together along time-aligned paths at a fixed speed (`max_step_m`, `max_step_deg` per env step); a move longer than `max_duration_s` is refused and must be split. A gripper value moves the jaw only after the arm arrives, then holds for `gripper_dwell_steps`. Targets outside `bounds` are clamped and the model is told.
+- `give_up(reason, hindsight)`: ends the episode. There is deliberately no "done" tool; the evaluator ends a successful episode.
+
+Malformed calls get up to three repair prompts. The conversation continues across calls (one per environment) until `reset` or `max_llm_calls` (100).
+
+## Configuration
+
+`deploy.yml` holds everything robot-specific. The defaults reproduce the original agent on the ARX X5 simulation embodiment:
+
+- `down_quat_wxyz`: the reported `ee_pose` orientation of a straight-down grasp.
+- `grasp_offset_m`: how far the grasp point sits beyond the reported pose along the tool axis (0.1501 m from the ARX flange; 0 when the evaluator already reports the fingertip centre).
+- `bounds`: per-dimension limits, e.g. `left_x: [-1.1, 0.5]`.
+- `embodiment_notes`: the frame, geometry, cameras and grasping advice the model reads in its instructions.
+- `model`, `reasoning_effort` (default `medium`), `max_llm_calls`, motion speed and limits, optional `task_recipe` text appended to the first goal, and `base_url` for an OpenAI-compatible endpoint.
+
+[`examples/yam_mujoco/astra_yam.yml`](../../examples/yam_mujoco/astra_yam.yml) configures it for the YAM MuJoCo scene.
 
 ## Setup
 
 ```sh
-python -m pip install -e . openai
+python -m pip install -e . openai pillow
 export OPENAI_API_KEY=...   # never put keys in deploy.yml or Git
 python setup_policy_server.py --config_path policy/GPT_6_Astra_Direct_EEF/deploy.yml
 ```
 
-`deploy.yml` selects the model, reasoning effort, image size, interpolation limits, and `scene_notes`. Edit `scene_notes` to describe the evaluator's world frame and workspace (table height, where each arm is mounted); the model can only name useful positions if it knows the frame. Set `base_url` to use an OpenAI-compatible endpoint.
-
-## Interface
-
-- Observations: `instruction`, any RGB cameras under `vision`, and `left_ee_pose`, `right_ee_pose` (`[x, y, z, qw, qx, qy, qz]`), `left_ee_joint_state`, `right_ee_joint_state` (gripper, 0 closed to 1 open) under `state`.
-- Actions: `action_type: ee` chunks with the same four keys. The evaluator performs inverse kinematics.
-
-Each call to `get_action` is one model request, so latency is seconds, not milliseconds. Model output is not deterministic.
+Observations need `instruction`, RGB cameras under `vision`, and `left_ee_pose`, `right_ee_pose` (`[x, y, z, qw, qx, qy, qz]`) plus `left_ee_joint_state`, `right_ee_joint_state` under `state`; actions use the same keys with `action_type: ee`, and the evaluator performs inverse kinematics. Each turn is one or more model requests, so latency is seconds, and output is not deterministic.
 
 ## Container
 
@@ -33,4 +47,4 @@ docker exec moravec-astra python policy/GPT_6_Astra_Direct_EEF/check_client.py
 docker stop moravec-astra
 ```
 
-The check sends one synthetic scene (a red block on a grey table) through the shared protocol, which makes one paid `gpt-6-astra` request, and validates the returned end-effector chunk. It executes no actions and does not establish task success. Override `scene_notes` for your evaluator by mounting a deployment YAML and overriding the default command with `python setup_policy_server.py --config_path /config/deploy.yml --host 0.0.0.0`.
+The check sends one synthetic scene (a red block on a grey table) through the shared protocol, which makes one paid `gpt-6-astra` request, and validates the returned end-effector chunk. It executes no actions and does not establish task success. Override `embodiment_notes` and the geometry settings for your evaluator by mounting a deployment YAML and overriding the default command with `python setup_policy_server.py --config_path /config/deploy.yml --host 0.0.0.0`.
