@@ -2,8 +2,15 @@ policy_name: GPT_6_Astra_Direct_EEF
 protocol: ws
 host: 127.0.0.1
 port: 6000
-action_type: joint
+action_type: ee
 eval_batch: false
-
-# This server is a harness placeholder. The evaluator runs the LLM agent,
-# calls OpenAI over HTTPS, and converts Cartesian goals into joint paths.
+model: gpt-6-astra
+reasoning_effort: low
+image_size: 384
+# Travel per env step and gripper hold time used to turn each goal into an action chunk.
+max_step_m: 0.01
+max_chunk: 100
+gripper_dwell_steps: 10
+# Describe the world frame and workspace so the model can name positions.
+scene_notes: >-
+  World frame: +z is up and the table surface is at z = 0. The left arm is on the -x side.

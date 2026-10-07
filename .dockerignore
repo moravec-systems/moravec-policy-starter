@@ -10,8 +10,6 @@
 !client_server/**
 !utils/
 !utils/**
-!scripts/
-!scripts/fetch_policy.py
 !policy/
 !policy/__init__.py
 !policy/*/

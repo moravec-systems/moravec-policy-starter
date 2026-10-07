@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
@@ -12,15 +11,11 @@ import numpy as np
 from moravec_policy.model_template import ModelTemplate
 from moravec_policy.utils.checkpoint_resolver import resolve_checkpoint_root
 
+from gr00t.data.embodiment_tags import EmbodimentTag
+from gr00t.policy import Gr00tPolicy
+
 _POLICY_DIR = Path(__file__).resolve().parent
-_GR00T_ROOT = _POLICY_DIR / "gr00t_n17"
 _CHECKPOINTS_DIR = _POLICY_DIR / "checkpoints"
-
-if str(_GR00T_ROOT) not in sys.path:
-    sys.path.insert(0, str(_GR00T_ROOT))
-
-from gr00t.data.embodiment_tags import EmbodimentTag  # noqa: E402
-from gr00t.policy import Gr00tPolicy  # noqa: E402
 
 VIDEO_KEY_CANDIDATES = {
     "front": ["cam_head", "cam_high", "head_camera", "top_camera"],

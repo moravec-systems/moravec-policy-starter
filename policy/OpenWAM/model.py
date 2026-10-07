@@ -1,13 +1,12 @@
-"""moravec_policy adapter for the OpenWAM policy (RoboDojo dual-arm arx_x5, EE control).
+"""moravec_policy adapter for OpenWAM (dual-arm ARX X5 simulation checkpoint, EE control).
 
-Loads the OpenWAM checkpoint in-process through the standard deploy path
-(``openwam.deploy.server.build_server_from_config`` — the same construction
-the JSON WebSocket server and ``scripts/verify_batch_equivalence.py`` use),
-then serves moravec_policy's batched eval protocol. Every ``get_action_batch``
-call stacks all running envs into ONE ``engine.generate_batch`` forward pass
-(true batch inference, verified contamination-free on real weights).
+Loads the checkpoint in-process through OpenWAM's own deploy path
+(``openwam.deploy.server.build_server_from_config``, the same construction its
+WebSocket server uses). ``get_action_batch`` calls ``engine.generate`` once per
+environment; upstream OpenWAM has no batched generate.
 
-Coordinate contract (must mirror training — ``openwam/dataloader/robodojo.py``):
+Coordinate contract (must mirror training; see ``openwam/dataloader/robodojo.py``,
+the dataset the released simulation checkpoint was trained on):
 
     obs    env-relative world pose [xyz, quat wxyz] per arm + gripper [0, 1]
         -> robot-base frame       (env_relative_world_to_robot_base, dual-X5
@@ -21,26 +20,26 @@ Coordinate contract (must mirror training — ``openwam/dataloader/robodojo.py``
         -> moravec_policy ee dicts    {left_ee_pose, left_ee_joint_state,
                                    right_ee_pose, right_ee_joint_state}
 
-Correctness-first settings are re-forced at load time regardless of the yaml:
-dit_cache off, compile off, decode_video off, sync executor.
+Settings re-forced at load time regardless of the yaml: dit_cache off,
+compile off, decode_video off, sync inference.
 """
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+import openwam
 
 from moravec_policy.model_template import ModelTemplate
 from moravec_policy.utils.checkpoint_resolver import resolve_checkpoint_root
 from moravec_policy.utils.process_data import get_robot_action_dim_info
 
 POLICY_DIR = Path(__file__).resolve().parent
-# Downloaded OpenWAM source tree (weights excluded).
-VENDORED_OPENWAM_ROOT = POLICY_DIR / "OpenWAM"
+# Editable install of the OpenWAM checkout; its configs/ hold the deploy defaults.
+OPENWAM_ROOT = Path(openwam.__file__).resolve().parents[1]
 CHECKPOINTS_DIR = POLICY_DIR / "checkpoints"
 
 _EXPECTED_ARM_DIMS = [6, 6]
@@ -87,31 +86,6 @@ def _resolve_ckpt_dir(model_cfg: dict) -> Path:
     )
     if not (root / "config.yaml").is_file():
         raise FileNotFoundError(f"checkpoint dir has no config.yaml: {root}")
-    return root
-
-
-def _resolve_openwam_root(openwam_root: Any) -> Path:
-    """Resolve the OpenWAM source root and make it win the import resolution.
-
-    Default is the vendored copy next to this file. The root is prepended to
-    sys.path unconditionally: the policy conda env typically carries an
-    editable install pointing at the external dev repo, and the vendored /
-    explicitly-configured tree must take precedence over it.
-    """
-    root = VENDORED_OPENWAM_ROOT if _is_none_like(openwam_root) else Path(str(openwam_root)).expanduser()
-    if not (root / "openwam" / "__init__.py").is_file():
-        raise FileNotFoundError(f"openwam package not found under openwam_root: {root}")
-    root_str = str(root)
-    if root_str in sys.path:
-        sys.path.remove(root_str)
-    sys.path.insert(0, root_str)
-    if "openwam" in sys.modules:
-        loaded = Path(getattr(sys.modules["openwam"], "__file__", "") or "").resolve()
-        if not str(loaded).startswith(str(root.resolve())):
-            raise RuntimeError(
-                f"openwam was already imported from {loaded}, not from openwam_root {root}; "
-                "start the server in a fresh process."
-            )
     return root
 
 
@@ -182,19 +156,16 @@ class Model(ModelTemplate):
 
         action_type = self.model_cfg.get("action_type") or "ee"
         if action_type != "ee":
-            raise ValueError(f"OpenWAM RoboDojo is an EE-space policy; action_type must be 'ee', got {action_type!r}.")
+            raise ValueError(f"OpenWAM is an EE-space policy; action_type must be 'ee', got {action_type!r}.")
         env_cfg_type = self.model_cfg.get("env_cfg_type")
         if not env_cfg_type:
             raise ValueError("env_cfg_type is required for the OpenWAM adapter.")
         dim_info = get_robot_action_dim_info(env_cfg_type)
         if list(dim_info.get("arm_dim") or []) != _EXPECTED_ARM_DIMS or list(dim_info.get("ee_dim") or []) != _EXPECTED_EE_DIMS:
             raise ValueError(
-                "OpenWAM's RoboDojo checkpoint is dual-X5 only (arm_dim [6, 6], ee_dim [1, 1]); "
+                "The OpenWAM simulation checkpoint is dual-X5 only (arm_dim [6, 6], ee_dim [1, 1]); "
                 f"env_cfg_type={env_cfg_type!r} resolves to {dim_info!r}."
             )
-
-        # null -> vendored copy at policy/OpenWAM/OpenWAM (X_WAM-style layout).
-        self.openwam_root = _resolve_openwam_root(self.model_cfg.get("openwam_root"))
 
         # Canonical training-side conversion + calibration (single source of truth).
         from openwam.dataloader.robodojo_contract import arx_x5_calibration
@@ -217,7 +188,6 @@ class Model(ModelTemplate):
 
         self.allow_dummy_policy = _is_true(self.model_cfg.get("allow_dummy_policy", False))
         self._engine = None
-        self._wam_policy = None
         self._preprocessor = None
         if self.allow_dummy_policy:
             print("[OpenWAM] allow_dummy_policy=true; checkpoint loading skipped (protocol debug only).")
@@ -229,7 +199,7 @@ class Model(ModelTemplate):
         # force-overridden below, so no separate pinned eval yaml is needed.
         deploy_config = self.model_cfg.get("openwam_deploy_config")
         if _is_none_like(deploy_config):
-            deploy_config = str(self.openwam_root / "configs" / "deploy.yaml")
+            deploy_config = str(OPENWAM_ROOT / "configs" / "deploy.yaml")
         device = str(self.model_cfg.get("device") or "cuda")
 
         from omegaconf import OmegaConf
@@ -237,9 +207,8 @@ class Model(ModelTemplate):
         from openwam.deploy.server import _load_deploy_yaml, build_server_from_config
 
         deploy_cfg = _load_deploy_yaml(deploy_config)
-        # Correctness-first: batch inference forbids the single-stream /
-        # shape-sensitive acceleration paths. Force them off even if the yaml
-        # drifts; engine.generate_batch fails fast if these were re-enabled.
+        # Deterministic, actions-only inference. The DiT cache is
+        # single-stream state that would leak between environments.
         OmegaConf.update(deploy_cfg, "optimization.dit_cache.enabled", False, merge=False)
         OmegaConf.update(deploy_cfg, "optimization.compile.enabled", False, merge=False)
         OmegaConf.update(deploy_cfg, "optimization.decode_video", False, merge=False)
@@ -249,7 +218,7 @@ class Model(ModelTemplate):
         server = build_server_from_config(deploy_cfg, ckpt_dir, device=device)
         server._init_policy()
         self._engine = server.engine
-        self._wam_policy = server._policy  # for the binary-dim legality projection
+        self._binary_dims = tuple(getattr(self._engine.architecture, "binary_command_dims", ()) or ())
         self._preprocessor = server._obs_preprocessor
 
         if self.replan_steps is None:
@@ -407,25 +376,25 @@ class Model(ModelTemplate):
         if self.allow_dummy_policy:
             return [self._hold_position_chunk(p) for p in payloads]
 
-        conditions = [self._conditions(p) for p in payloads]
-        result = self._engine.generate_batch(conditions)
-        actions = result["actions"]
-        if hasattr(actions, "cpu"):
-            actions = actions.detach().cpu().numpy()
-        actions = np.asarray(actions)
-        if actions.ndim != 3 or actions.shape[0] != len(env_idx_list) or actions.shape[2] != _EEF20_DIM:
-            raise RuntimeError(
-                f"generate_batch returned actions of shape {actions.shape}; "
-                f"expected (B={len(env_idx_list)}, T, {_EEF20_DIM})."
-            )
-        # Same final legality projection the OpenWAM server applies (no-op when
-        # the checkpoint declares no binary command dims).
-        actions = self._wam_policy._project_binary_dims(actions)
+        actions = np.stack([self._generate(self._conditions(p)) for p in payloads])
 
         n_exec = actions.shape[1]
         if self.replan_steps is not None:
             n_exec = min(self.replan_steps, n_exec)
         return [self._eef20_chunk_to_native(actions[b, :n_exec]) for b in range(actions.shape[0])]
+
+    def _generate(self, conditions: dict) -> np.ndarray:
+        actions = self._engine.generate(conditions)["actions"]
+        if hasattr(actions, "cpu"):
+            actions = actions.detach().cpu().numpy()
+        actions = np.array(actions)
+        if actions.ndim != 2 or actions.shape[1] != _EEF20_DIM:
+            raise RuntimeError(f"generate returned actions of shape {actions.shape}; expected (T, {_EEF20_DIM}).")
+        # Same final legality projection as OpenWAM's WAMPolicy.predict_action
+        # (no-op when the checkpoint declares no binary command dims).
+        for dim in self._binary_dims:
+            actions[:, dim] = np.where(actions[:, dim] > 0.5, 1.0, -1.0)
+        return actions
 
     def reset(self):
         self._batch = {}

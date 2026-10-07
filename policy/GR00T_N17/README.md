@@ -1,25 +1,23 @@
 # GR00T_N17
 
-Moravec policy adapter. `model.py` converts observations and actions; `deploy.yml` selects checkpoint and serving settings. The model implementation is downloaded during setup and is not tracked in this repository.
+Moravec policy adapter for [NVIDIA Isaac GR00T](https://github.com/NVIDIA/Isaac-GR00T) N1.7. `model.py` converts observations and actions; `deploy.yml` selects checkpoint and serving settings. GR00T itself is installed from NVIDIA's repository at a pinned commit.
 
 ## Setup
 
-On a compatible Linux NVIDIA GPU host, fetch with Python 3.12+, then create the model's Python 3.10 environment:
+On a Linux NVIDIA GPU host, create a Python 3.10 environment and install the pinned runtime, GR00T, and this starter:
 
 ```sh
-python scripts/fetch_policy.py GR00T_N17
-uv venv --python 3.10 policy/GR00T_N17/gr00t_n17/.venv
-cd policy/GR00T_N17/gr00t_n17
-uv pip install --python .venv/bin/python -e . -e ../../..
+uv venv --python 3.10 .venv-gr00t && source .venv-gr00t/bin/activate
+uv pip install -r policy/GR00T_N17/requirements.lock
+uv pip install --no-deps "gr00t @ git+https://github.com/NVIDIA/Isaac-GR00T@23ace64f17aa5015259b8609d371eb61a357c776"
+uv pip install --no-deps -e .
 ```
 
-This preserves the previous platform-specific editable installation approach. Checkpoint access, CUDA compatibility, and a matching modality configuration under `configs/` are still required.
+Checkpoint access, CUDA compatibility, and (for `io_format: arx_x5`) a matching modality configuration under `configs/` are still required.
 
 ## Serving
 
-Activate the model runtime, then use the shared Python server from the repository root as described in the [integration guide](../../INTEGRATION.md#remote-serving). Weights are separate downloads. Training and benchmark orchestration are outside this starter's scope.
-
-The [source manifest](../../scripts/fetch_policy.py) pins the exact implementation snapshot used by this adapter.
+Activate the environment, then use the shared Python server from the repository root as described in the [integration guide](../../INTEGRATION.md#remote-serving). Weights are separate downloads.
 
 ## Checkpoint configuration
 
@@ -50,7 +48,7 @@ docker build --platform linux/amd64 -f policy/GR00T_N17/Dockerfile \
   -t moravec-gr00t:demo .
 ```
 
-The image fetches pinned model source and installs the pinned inference runtime.
+The image installs NVIDIA's GR00T at a pinned commit and the pinned inference runtime.
 Weights and credentials are excluded from its build context. Obtain access to
 Cosmos-Reason2-2B on Hugging Face, then set `HF_TOKEN` in your local environment
 without putting its value in the Dockerfile or Git.

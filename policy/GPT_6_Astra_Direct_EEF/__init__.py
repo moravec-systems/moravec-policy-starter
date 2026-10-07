@@ -1,1 +1,1 @@
-"""RGB-only Inspect agent with a Cartesian model-facing action space."""
+"""LLM agent that chooses end-effector goals through the OpenAI Responses API."""

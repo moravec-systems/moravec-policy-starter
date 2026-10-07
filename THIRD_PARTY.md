@@ -1,11 +1,16 @@
 # Third-party notices
 
-This repository includes modified code from [XPolicyLab](https://github.com/XPolicyLab/XPolicyLab), revision `45ae74c1a427206f62d55f08f48f00295d2dc1a3`, under the [Apache License 2.0](LICENSE). Moravec modifications narrow the policy and hardware catalog, replace project documentation, remove branding and agent-tool configuration, and add a hardware-free validation example. Moravec also changes the Python namespace and adapts fetched agent imports to `moravec_policy`.
+The shared client/server transport, model template, and data utilities include modified code from [XPolicyLab](https://github.com/XPolicyLab/XPolicyLab), revision `45ae74c1a427206f62d55f08f48f00295d2dc1a3`, under the [Apache License 2.0](LICENSE). Moravec modifications narrow the policy and hardware catalog, replace project documentation, remove branding and agent-tool configuration, change the Python namespace to `moravec_policy`, and add a hardware-free validation example. The GR00T, π0.5, OpenWAM, and MolmoAct2 adapters (`model.py`) began from XPolicyLab's adapters for those models.
 
-Model and agent implementation source is fetched during setup from the pinned snapshot specified in `scripts/fetch_policy.py`, rather than distributed in this repository. The fetched implementations retain their original licenses and notices. Refer to [the pinned source tree](https://github.com/XPolicyLab/XPolicyLab/tree/45ae74c1a427206f62d55f08f48f00295d2dc1a3/policy) for those files.
+Model implementations are not distributed in this repository. Each policy README installs the model from its original source at a pinned revision, and those sources retain their own licenses and notices:
 
-Model weights have separate provider terms. Keeping an adapter in this repository does not grant access to weights or establish model/hardware compatibility. Downloaded model README files and source notices remain technical references and attribution.
+| Example | Source | Revision |
+| --- | --- | --- |
+| GR00T_N17 | [NVIDIA Isaac-GR00T](https://github.com/NVIDIA/Isaac-GR00T) | `23ace64f17aa5015259b8609d371eb61a357c776` |
+| Pi_05 | [Physical Intelligence openpi](https://github.com/Physical-Intelligence/openpi) | `215abfb217dbac7d5f1273282331b9b1866c0479` |
+| OpenWAM | [OpenWAM](https://github.com/OpenWAM-Official/OpenWAM) | `48bd67b89d489b14d03b8d92bc66e65d306df32e` |
+| MolmoAct2 | [Ai2 MolmoAct2-BimanualYAM](https://huggingface.co/allenai/MolmoAct2-BimanualYAM/tree/8dcbed66f2380e4393189c303ea72488eb9e63c2) | `8dcbed66f2380e4393189c303ea72488eb9e63c2` |
 
-Adapter source provenance also includes contributions by the RoboDojo Team and, for the Astra agent, [RoboProbe](https://github.com/RoboProbe/RoboProbe). Legacy benchmark names remain in functional imports, checkpoint identifiers, and model source documentation where changing them would alter compatibility. These are not Moravec validation claims.
+The MolmoAct2 adapter also follows Ai2's [YAM inference example](https://github.com/allenai/molmoact2/blob/6070080a20321b4f498ab30f28e1d09ac465edb7/examples/yam/host_server_yam.py) and is narrowed to the official BimanualYAM checkpoint and its camera/state/action contract. Its snapshot includes executable model source loaded with `trust_remote_code=True`.
 
-The MolmoAct2 adapter follows XPolicyLab's direct Transformers adapter (same pinned revision above, contributor Haoquan Fang) and Ai2's [YAM inference example](https://github.com/allenai/molmoact2/blob/6070080a20321b4f498ab30f28e1d09ac465edb7/examples/yam/host_server_yam.py). Moravec narrows this example to the official BimanualYAM checkpoint and its camera/state/action contract. Its model implementation, normalization data, weights, and original notices are downloaded together from [Ai2's immutable model snapshot](https://huggingface.co/allenai/MolmoAct2-BimanualYAM/tree/8dcbed66f2380e4393189c303ea72488eb9e63c2). Consult the provider's notices and terms before use.
+Model weights have separate provider terms. Keeping an adapter in this repository does not grant access to weights or establish model/hardware compatibility. Third-party checkpoint and dataset identifiers (for example `OpenWAM-Alpha-Sim-RoboDojo` or `cjgogo/RoboDojo-pi05-checkpoints`) are kept as published; they are not Moravec validation claims.
