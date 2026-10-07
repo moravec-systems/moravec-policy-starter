@@ -1,25 +1,27 @@
 # Pi_05
 
-Moravec policy adapter. `model.py` converts observations and actions; `deploy.yml` selects checkpoint and serving settings. The model implementation is downloaded during setup and is not tracked in this repository.
+Moravec policy adapter for Physical Intelligence's π0.5, built on [openpi](https://github.com/Physical-Intelligence/openpi), PI's reference implementation. `model.py` converts observations and actions; `deploy.yml` selects checkpoint and serving settings.
+
+The adapter follows openpi's ALOHA recipe (`LeRobotAlohaDataConfig`): cameras `cam_high`, `cam_left_wrist` and `cam_right_wrist`, a 14-D state of six joints plus one gripper per arm, and delta joint actions. Instead of registering a named training config, `model.py` builds the inference config inline from `deploy.yml`:
+
+- `asset_id`: normalization stats under `<model_path>/assets/<asset_id>/`.
+- `adapt_to_pi`: `true` only for checkpoints trained in π's internal joint/gripper space (openpi's default for standard ALOHA data); `false` for checkpoints trained on raw joint values, like the fixture below.
 
 ## Setup
 
-Fetch with Python 3.12+, then prepare OpenPI's own runtime:
+Clone openpi at the pinned commit and use its own environment:
 
 ```sh
-python scripts/fetch_policy.py Pi_05
+git clone https://github.com/Physical-Intelligence/openpi policy/Pi_05/openpi
+git -C policy/Pi_05/openpi checkout 215abfb217dbac7d5f1273282331b9b1866c0479
 cd policy/Pi_05/openpi
-GIT_LFS_SKIP_SMUDGE=1 uv sync --group lerobot
-uv pip install --python .venv/bin/python -e . -e ../../..
+GIT_LFS_SKIP_SMUDGE=1 uv sync
+uv pip install --python .venv/bin/python -e ../../..
 ```
-
-Configure the checkpoint, training configuration, normalization assets, and environment in `deploy.yml`. The defaults are not a YAM-trained checkpoint.
 
 ## Serving
 
-Activate the model runtime, then use the shared Python server from the repository root as described in the [integration guide](../../INTEGRATION.md#remote-serving). Weights are separate downloads. Training and benchmark orchestration are outside this starter's scope.
-
-The [source manifest](../../scripts/fetch_policy.py) pins the exact implementation snapshot used by this adapter.
+Activate `policy/Pi_05/openpi/.venv`, then use the shared Python server from the repository root as described in the [integration guide](../../INTEGRATION.md#remote-serving). Weights are separate downloads.
 
 ## Concrete research fixture
 
@@ -36,4 +38,4 @@ hf download cjgogo/RoboDojo-pi05-checkpoints \
   --local-dir policy/Pi_05
 ```
 
-Activate the model environment and set `XLA_PYTHON_CLIENT_PREALLOCATE=false` when sharing a GPU with simulation. `env_cfg_type: arx_x5` requires the corresponding evaluator configuration. The training config name and normalization asset ID are checkpoint-specific identifiers; do not rename them as branding.
+Activate the model environment and set `XLA_PYTHON_CLIENT_PREALLOCATE=false` when sharing a GPU with simulation. `env_cfg_type: arx_x5` requires the corresponding evaluator configuration. The normalization asset ID is a checkpoint-specific identifier.

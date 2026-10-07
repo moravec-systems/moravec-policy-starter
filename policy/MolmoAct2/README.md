@@ -17,7 +17,7 @@ hf download allenai/MolmoAct2-BimanualYAM \
   --local-dir policy/MolmoAct2/checkpoints/BimanualYAM
 ```
 
-This snapshot includes executable model/processor source loaded with `trust_remote_code=True`, plus normalization metadata and weights. Review that pinned source before use. Downloads retain provider notices and Hugging Face download metadata. There is no separate `fetch_policy.py` step. Serving loads only the local snapshot; a relative `model_path` resolves beside this policy's `model.py`.
+This snapshot includes executable model/processor source loaded with `trust_remote_code=True`, plus normalization metadata and weights. Review that pinned source before use. Downloads retain provider notices and Hugging Face download metadata. Serving loads only the local snapshot; a relative `model_path` resolves beside this policy's `model.py`.
 
 ## Observation and action contract
 

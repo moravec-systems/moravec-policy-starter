@@ -8,5 +8,6 @@ task_name: stack_bowls
 action_type: joint
 eval_batch: false
 model_path: checkpoints/sim-10task/14077
-train_config_name: pi05_base_aloha_full_sim_arx-x5_seed_0
-repo_id: arx_x5_sim
+# Normalization stats under <model_path>/assets/<asset_id>.
+asset_id: arx_x5_sim
+adapt_to_pi: false

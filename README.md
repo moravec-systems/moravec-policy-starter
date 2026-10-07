@@ -7,13 +7,13 @@ Examples for integrating customer policies with Moravec evaluation. Each policy 
 | Folder | Purpose |
 | --- | --- |
 | [demo_policy](policy/demo_policy) | Synthetic actions for testing client/server wiring; not a learned policy or a physical robot demo |
-| [GPT_6_Astra_Direct_EEF](policy/GPT_6_Astra_Direct_EEF) | LLM agent; upstream inference and Cartesian execution currently run in the evaluator client |
+| [GPT_6_Astra_Direct_EEF](policy/GPT_6_Astra_Direct_EEF) | LLM agent; OpenAI Responses API chooses end-effector goals |
 | [GR00T_N17](policy/GR00T_N17) | NVIDIA GR00T VLA |
 | [Pi_05](policy/Pi_05) | Physical Intelligence π0.5 VLA |
 | [OpenWAM](policy/OpenWAM) | World-action model |
 | [MolmoAct2](policy/MolmoAct2) | Ai2 BimanualYAM VLA; absolute joint actions |
 
-Use each example's README and `deploy.yml` for its dependencies, checkpoint, and launch settings. GPU runtimes and checkpoints are installed separately. Model and agent implementations are fetched on demand with `scripts/fetch_policy.py` or, for MolmoAct2, as part of its pinned Hugging Face snapshot; they are not stored in Git. Each policy README gives its runtime setup commands.
+Use each example's README and `deploy.yml` for its dependencies, checkpoint, and launch settings. GPU runtimes and checkpoints are installed separately. Model implementations are installed from their original repositories at pinned commits (NVIDIA Isaac-GR00T, Physical Intelligence openpi, OpenWAM) or, for MolmoAct2, from its pinned Hugging Face snapshot; they are not stored in Git. Each policy README gives its runtime setup commands.
 
 ## Submitting a policy
 

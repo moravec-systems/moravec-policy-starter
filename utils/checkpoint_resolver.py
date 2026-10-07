@@ -52,7 +52,7 @@ def ckpt_name_is_path(ckpt_name: Any) -> bool:
 
     A value counts as a path when it is absolute or contains a path separator
     (``/`` or the OS-specific ``os.sep``). A bare identifier such as
-    ``RoboDojo-cotrain-arx_x5-joint-0`` is not a path.
+    ``arx_x5-joint-0`` is not a path.
     """
     text = _clean(ckpt_name)
     if text is None:

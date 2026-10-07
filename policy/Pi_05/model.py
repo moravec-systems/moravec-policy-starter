@@ -1,18 +1,12 @@
-#!/usr/bin/env python
-# -- coding: UTF-8
-"""
-#!/usr/bin/python3
-"""
+"""Moravec adapter for Physical Intelligence's π0.5, using upstream openpi."""
 from pathlib import Path
-import os
-import sys
 from typing import Any
 
 import numpy as np
 
-from openpi.policies import policy_config as _policy_config
-from openpi.shared import normalize as _normalize
-from openpi.training import config as _config
+from openpi.models import pi0_config
+from openpi.policies import policy_config
+from openpi.training import config as openpi_config
 
 from moravec_policy.model_template import ModelTemplate
 from moravec_policy.utils.checkpoint_resolver import candidate_checkpoint_roots
@@ -100,16 +94,23 @@ class Model(ModelTemplate):
         self.model = self.policy
 
     def get_model(self, model_cfg: dict[str, Any]):
-        train_config_name = model_cfg.get("train_config_name", "pi05_aloha")
-        repo_id = model_cfg.get("repo_id", "1118")
+        # openpi's ALOHA recipe: three cameras (cam_high, cam_left_wrist,
+        # cam_right_wrist), 14-D state of 6 joints + 1 gripper per arm, and
+        # delta joint actions. Only inference fields are needed.
         model_root = _resolve_pi05_model_root(model_cfg)
-
-        config = _config.get_config(train_config_name)
-        norm_stats = None
-        if repo_id is not None:
-            norm_stats = _normalize.load(model_root / "assets" / str(repo_id))
-
-        return _policy_config.create_trained_policy(config, str(model_root), norm_stats=norm_stats)
+        train_config = openpi_config.TrainConfig(
+            name="pi05_aloha_moravec",
+            model=pi0_config.Pi0Config(pi05=True),
+            data=openpi_config.LeRobotAlohaDataConfig(
+                # True only for checkpoints trained in π's internal joint/gripper space.
+                adapt_to_pi=model_cfg.get("adapt_to_pi", False),
+                # Normalization stats ship with the checkpoint: <model_root>/assets/<asset_id>.
+                assets=openpi_config.AssetsConfig(
+                    assets_dir=str(model_root / "assets"), asset_id=model_cfg["asset_id"]
+                ),
+            ),
+        )
+        return policy_config.create_trained_policy(train_config, model_root)
 
     def update_obs(self, obs):
         self.update_obs_batch([obs])
@@ -154,9 +155,6 @@ class Model(ModelTemplate):
     def reset(self):
         self.observation_window = None
         self._latest_env_idx_list = [0]
-
-    def reset_obsrvationwindows(self):
-        self.reset()
 
 
 def encode_obs(observation, action_type, robot_action_dim_info):

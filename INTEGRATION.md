@@ -72,7 +72,7 @@ with WsModelClient(url="ws://127.0.0.1:6000",
     actions = client.call("get_action")
 ```
 
-The checkpoint and evaluator configuration must already exist; this command does not provision them. The server has no built-in authentication/TLS, so the example binds loopback and uses SSH. A custom HTTP/gRPC provider requires a policy adapter. Astra is currently different: its model-server adapter is a placeholder, while the agent and Cartesian execution live in the evaluator client.
+The checkpoint and evaluator configuration must already exist; this command does not provision them. The server has no built-in authentication/TLS, so the example binds loopback and uses SSH. A custom HTTP/gRPC provider requires a policy adapter. The LLM example (Astra) calls the OpenAI API from inside the policy server, so only that machine needs `OPENAI_API_KEY`.
 
 ## Quick validation
 
@@ -86,6 +86,6 @@ This creates a temporary evaluator layout and local WebSocket server. Six cases 
 
 Copy `policy/demo_policy/` and set `policy_name` in `deploy.yml` to the new folder name. Implement preprocessing, inference, and action conversion in `model.py`. Document required cameras, state, units, frames, checkpoint, and trained embodiment. The evaluator owns simulation, physical control, and scoring.
 
-Use the Python server plus YAML as the primary serving entry point. Training and shell launch wrappers are not included. Fetch model source with `python scripts/fetch_policy.py <policy>` using Python 3.12+, then install its runtime following its README. Downloads use a pinned source revision and land in ignored directories; weights are separate. Keep weights, credentials, and run outputs outside Git.
+Use the Python server plus YAML as the primary serving entry point. Training and shell launch wrappers are not included. Each model README installs the model from its original repository at a pinned commit; clones land in ignored directories and weights are separate. Keep weights, credentials, and run outputs outside Git.
 
-After upgrading an existing checkout, reinstall the editable package in each runtime. For previously downloaded model source, run `python scripts/fetch_policy.py <policy> --adapt-existing` to update its package imports while preserving local changes.
+After upgrading an existing checkout, reinstall the editable package in each runtime.
