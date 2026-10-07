@@ -2,19 +2,15 @@
 
 from __future__ import annotations
 
-import argparse
 import asyncio
-import importlib
 import inspect
 import logging
 import time
 from collections import OrderedDict
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import uuid4
 
-import yaml
 from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
@@ -336,7 +332,7 @@ class PolicyServer:
             response = await self._dispatch_frame(frame)
         except WsError as exc:
             # The client only receives str(exc), so a model failure wrapped in
-            # CALL_FAILED/RESET_FAILED/INFER_FAILED would otherwise leave no
+            # CALL_FAILED/RESET_FAILED would otherwise leave no
             # traceback anywhere. Protocol rejections carry no cause and stay
             # a one-liner.
             logger.error(
@@ -416,12 +412,8 @@ class PolicyServer:
             return await self._handle_reset(frame)
         if frame.message_type == MessageType.CALL:
             return await self._handle_call(frame)
-        if frame.message_type == MessageType.INFER:
-            return await self._handle_infer(frame)
         if frame.message_type == MessageType.TRIAL_END:
             return await self._handle_trial_end(frame)
-        if frame.message_type == MessageType.HEARTBEAT:
-            return self._reply(frame, MessageType.HEARTBEAT_ACK, {"ok": True})
         if frame.message_type == MessageType.CLOSE:
             return None
         raise WsError(
@@ -469,7 +461,7 @@ class PolicyServer:
             )
 
         obs = frame.payload.get("obs")
-        if func_name in {"update_obs", "update_obs_batch", "infer"} and obs is None:
+        if func_name in {"update_obs", "update_obs_batch"} and obs is None:
             raise WsError(ErrorCode.INVALID_FRAME, f"{func_name} payload missing obs")
 
         if obs is not None:
@@ -503,71 +495,6 @@ class PolicyServer:
         payload["latency_ms"] = (time.perf_counter() - start) * 1000.0
         return self._reply(frame, MessageType.CALL_RESULT, payload)
 
-    async def _handle_infer(self, frame: Frame) -> Frame:
-        observation = frame.payload.get("observation")
-        if observation is None:
-            raise WsError(ErrorCode.INVALID_FRAME, "infer payload missing observation")
-
-        try:
-            # Off the event loop: see _handle_call — JPEG decode is CPU-bound.
-            observation = await asyncio.to_thread(decode_obs_images, observation)
-        except ValueError as exc:
-            raise WsError(ErrorCode.INVALID_FRAME, str(exc)) from exc
-
-        start = time.perf_counter()
-        try:
-            async with self._model_lock:
-                update_obs = getattr(self.model, "update_obs", None)
-                get_action = getattr(self.model, "get_action", None)
-                if callable(update_obs) and callable(get_action):
-                    if not inspect.iscoroutinefunction(
-                        update_obs
-                    ) and not inspect.iscoroutinefunction(get_action):
-                        # Keep the sync pair on ONE worker thread: some models
-                        # carry thread-affine state between the two calls.
-                        # NOTE: this only holds WITHIN one INFER request;
-                        # across requests the default executor may pick a
-                        # different thread, so threading.local model state is
-                        # not supported.
-                        def run_legacy_infer() -> Any:
-                            update_result = update_obs(observation)
-                            if inspect.isawaitable(update_result):
-                                raise TypeError(
-                                    "update_obs returned an awaitable but is not async"
-                                )
-                            result = get_action()
-                            if inspect.isawaitable(result):
-                                raise TypeError(
-                                    "get_action returned an awaitable but is not async"
-                                )
-                            return result
-
-                        result = await asyncio.to_thread(run_legacy_infer)
-                    else:
-                        # Mixed/async pair: _invoke_method keeps sync halves
-                        # off the event loop (running a blocking sync call
-                        # inline here would stall every connection).
-                        await self._invoke_method(update_obs, observation)
-                        result = await self._invoke_method(get_action)
-                else:
-                    infer = getattr(self.model, "infer", None)
-                    if not callable(infer):
-                        raise AttributeError(
-                            "model must implement update_obs()/get_action() or infer(observation)"
-                        )
-                    result = await self._invoke_method(infer, observation)
-        except Exception as exc:
-            raise WsError(ErrorCode.INFER_FAILED, str(exc)) from exc
-
-        latency_ms = (time.perf_counter() - start) * 1000.0
-        if isinstance(result, Mapping) and "actions" in result:
-            payload: dict[str, Any] = dict(result)
-            payload.setdefault("latency_ms", latency_ms)
-        else:
-            payload = {"actions": result, "latency_ms": latency_ms}
-
-        return self._reply(frame, MessageType.INFER_RESULT, payload)
-
     async def _handle_trial_end(self, frame: Frame) -> Frame:
         hook = getattr(self.model, "on_trial_end", None)
         hook_result = (
@@ -577,54 +504,3 @@ class PolicyServer:
         )
         return self._reply(frame, MessageType.TRIAL_END_ACK, _ok_payload(hook_result))
 
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config-path", "--config_path", dest="config_path", required=True
-    )
-    parser.add_argument("--protocol", choices=("ws",), default="ws")
-    parser.add_argument("--host")
-    parser.add_argument("--port", type=int)
-    args = parser.parse_args()
-
-    with open(args.config_path, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-    if not isinstance(data, dict):
-        raise ValueError(f"config must be a YAML mapping: {args.config_path}")
-    deploy_cfg = data
-    if deploy_cfg.get("protocol", "ws") != "ws":
-        raise ValueError("Only the ws protocol is supported")
-    if args.host is not None:
-        deploy_cfg["host"] = args.host
-    if args.port is not None:
-        deploy_cfg["port"] = args.port
-
-    policy_name = deploy_cfg.get("policy_name")
-    if not policy_name:
-        raise ValueError("policy_name must be specified in config")
-    module = importlib.import_module(f"moravec_policy.policy.{policy_name}.model")
-    model_class = getattr(module, "Model")
-    model = model_class(deploy_cfg)
-
-    # deploy.yml may carry an explicit `port: null`; treat it as "unset"
-    # instead of crashing in int(None).
-    port = deploy_cfg.get("port")
-    server = PolicyServer(
-        model,
-        PolicyServerConfig(
-            host=deploy_cfg.get("host") or "0.0.0.0",
-            port=int(port) if port is not None else 19000,
-            ws_ping_interval_s=deploy_cfg.get("ws_ping_interval_s", 20.0),
-            ws_ping_timeout_s=deploy_cfg.get("ws_ping_timeout_s", 20.0),
-        ),
-    )
-    try:
-        asyncio.run(server.serve_forever())
-    except KeyboardInterrupt:
-        # serve_forever's finally already drained in-flight model calls.
-        logger.info("policy server interrupted; shut down cleanly")
-
-
-if __name__ == "__main__":
-    main()

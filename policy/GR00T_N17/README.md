@@ -13,7 +13,7 @@ uv pip install --no-deps "gr00t @ git+https://github.com/NVIDIA/Isaac-GR00T@23ac
 uv pip install --no-deps -e .
 ```
 
-Checkpoint access, CUDA compatibility, and (for `io_format: arx_x5`) a matching modality configuration under `configs/` are still required.
+Checkpoint access and CUDA compatibility are still required.
 
 ## Serving
 
@@ -32,7 +32,7 @@ hf download nvidia/GR00T-N1.7-LIBERO \
 
 Cosmos-Reason2-2B access and runtime dependencies are required. Its identifier in `deploy.yml` must also match the dependency in the checkpoint's `config.json`; private offline copies can contain machine-specific paths and need preparation before loading. GR00T only accepts a backbone whose name contains `nvidia/Cosmos-Reason2`, so keep that in the path of a local copy (for example `/weights/nvidia/Cosmos-Reason2-2B`) and point both `cosmos_model_path` and the checkpoint's `config.json` `model_name` at it.
 
-Native observations follow the checkpoint's `video`, `state`, and `language` schema. The returned chunk preserves native action names and units; the evaluator performs controller conversion. `io_format: arx_x5` retains the existing bimanual adapter and requires a matching ARX X5 checkpoint and environment configuration. It must not be used with the LIBERO checkpoint.
+Native observations follow the checkpoint's `video`, `state`, and `language` schema. The returned chunk preserves native action names and units; the evaluator performs controller conversion.
 
 ## Container quickstart
 

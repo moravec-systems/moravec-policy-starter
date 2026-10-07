@@ -19,9 +19,6 @@ RUN git clone https://github.com/Physical-Intelligence/openpi /opt/openpi \
 COPY . /app
 # Install the starter without re-resolving the model environment.
 RUN uv pip install --python /opt/venv/bin/python --no-deps msgpack-numpy==0.4.8 -e /app \
-    && mkdir -p /env_cfg/robot \
-    && cp utils/robot/_robot_info.json /env_cfg/robot/_robot_info.json \
-    && printf 'config:\n  robot: arx_x5\n' > /env_cfg/arx_x5.yml \
     && python -c "from moravec_policy.policy.Pi_05.model import Model"
 EXPOSE 6000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10m \

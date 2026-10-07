@@ -17,8 +17,6 @@
 !policy/GR00T_N17/*.py
 !policy/GR00T_N17/deploy.yml
 !policy/GR00T_N17/README.md
-!policy/GR00T_N17/configs/
-!policy/GR00T_N17/configs/*.py
 **/__pycache__/**
 **/*.pyc
 !policy/GR00T_N17/requirements.lock

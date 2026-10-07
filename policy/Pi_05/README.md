@@ -38,7 +38,7 @@ hf download cjgogo/RoboDojo-pi05-checkpoints \
   --local-dir policy/Pi_05
 ```
 
-Activate the model environment and set `XLA_PYTHON_CLIENT_PREALLOCATE=false` when sharing a GPU with simulation. `env_cfg_type: arx_x5` requires the corresponding evaluator configuration. The normalization asset ID is a checkpoint-specific identifier.
+Activate the model environment and set `XLA_PYTHON_CLIENT_PREALLOCATE=false` when sharing a GPU with simulation. `env_cfg_type: arx_x5` selects the ARX X5 dimensions the checkpoint was trained with. The normalization asset ID is a checkpoint-specific identifier.
 
 ## Container
 

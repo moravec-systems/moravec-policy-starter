@@ -4,15 +4,7 @@ from collections.abc import Mapping
 from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import BaseModel, Field
-
-try:
-    from pydantic import ConfigDict
-
-    _PYDANTIC_V2 = True
-except ImportError:  # pydantic v1
-    ConfigDict = None  # type: ignore[misc, assignment]
-    _PYDANTIC_V2 = False
+from pydantic import BaseModel, ConfigDict, Field
 
 from client_server.protocol.exceptions import ErrorCode, WsError
 from client_server.protocol.messages import MessageType
@@ -22,22 +14,10 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _frame_to_dict(frame: BaseModel, *, exclude: set[str]) -> dict[str, Any]:
-    if hasattr(frame, "model_dump"):
-        return frame.model_dump(mode="json", exclude=exclude)
-    return frame.dict(exclude=exclude)  # pydantic v1
-
-
 class Frame(BaseModel):
     """One WebSocket binary message."""
 
-    if _PYDANTIC_V2:
-        model_config = ConfigDict(populate_by_name=True, extra="forbid")
-    else:
-
-        class Config:
-            extra = "forbid"
-            allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     message_type: MessageType
     request_id: str
@@ -50,7 +30,7 @@ class Frame(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
 
     def to_wire_dict(self) -> dict[str, Any]:
-        data = _frame_to_dict(self, exclude={"payload", "request_id"})
+        data = self.model_dump(mode="json", exclude={"payload", "request_id"})
         data["message_id"] = self.request_id
         data["payload"] = self.payload
         return data

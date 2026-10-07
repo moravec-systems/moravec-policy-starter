@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import cv2
-from moravec_policy.utils.load_file import load_json, load_yaml
+from moravec_policy.utils.load_file import load_json
 
 def _validate_config(action_type: str, robot_action_dim_info: dict, source_type: str):
     """
@@ -244,25 +244,14 @@ def unpack_robot_state(
 
     return result
 
-def get_robot_action_dim_info(env_cfg_type):
-    env_cfg = load_yaml(os.path.join(os.path.dirname(__file__), "../../env_cfg", f"{env_cfg_type}.yml"))
-    robot_name = env_cfg['config']['robot']
-    robot_action_dim_info = load_json(os.path.join(os.path.dirname(__file__), "../../env_cfg/robot", "_robot_info.json"))[robot_name]
 
-    return robot_action_dim_info
+def get_robot_action_dim_info(robot):
+    """Arm and gripper dimensions for a robot named in utils/robot/_robot_info.json."""
+    registry = load_json(os.path.join(os.path.dirname(__file__), "robot", "_robot_info.json"))
+    if robot not in registry:
+        raise ValueError(f"Unknown robot {robot!r}; expected one of {sorted(registry)}")
+    return registry[robot]
 
-def get_batch_size(env_cfg_type):
-    env_cfg = load_yaml(os.path.join(os.path.dirname(__file__), "../../env_cfg", f"{env_cfg_type}.yml"))
-    sim_cfg = env_cfg['config']['sim']
-    sim_info = load_yaml(os.path.join(os.path.dirname(__file__), "../../env_cfg/sim", f"{sim_cfg}.yml"))
-
-    return sim_info['scene']['num_envs']
-
-def get_action_dim(env_cfg_type):
-    env_cfg = load_yaml(os.path.join(os.path.dirname(__file__), "../../env_cfg", f"{env_cfg_type}.yml"))
-    robot_name = env_cfg['config']['robot']
-    robot_action_dim_info = load_json(os.path.join(os.path.dirname(__file__), "../../env_cfg/robot", "_robot_info.json"))[robot_name]
-    return sum(robot_action_dim_info["arm_dim"]) + sum(robot_action_dim_info["ee_dim"])
 
 # Two image bit stream formats exist in moravec_policy data, and both decode to RGB.
 #
@@ -272,7 +261,7 @@ def get_action_dim(env_cfg_type):
 #             reverses them a second time and returns the original RGB, but any
 #             conforming decoder (PIL, ffmpeg, a browser) shows red and blue
 #             swapped. All data collected before the marker existed is this.
-#   standard  A conforming RGB JPEG written by encode_image_bit, stamped with a
+#   standard  A conforming RGB JPEG written by the evaluator's encoder, stamped with a
 #             COM segment holding _RGB_MARKER_PAYLOAD. cv2.imdecode returns BGR
 #             for it, so decoding needs exactly one swap.
 #
@@ -286,8 +275,8 @@ def get_action_dim(env_cfg_type):
 # and a buffer in any other container is necessarily read as legacy. That is
 # the right reading for stored data — every non-JPEG buffer in the corpus came
 # from a legacy producer calling cv2.imencode — but it does mean a conforming
-# non-JPEG buffer would decode channel-reversed, which is one more reason
-# encode_image_bit writes JPEG and nothing else.
+# non-JPEG buffer would decode channel-reversed, which is why encoders
+# should write JPEG and nothing else.
 _RGB_MARKER_PAYLOAD = b"XPL-RGB1"
 
 _JPEG_PAD = 0xFF
@@ -298,7 +287,6 @@ _JPEG_RST_LAST = 0xD7
 _JPEG_SOI = 0xD8
 _JPEG_EOI = 0xD9
 _JPEG_SOS = 0xDA
-_JPEG_APP0 = 0xE0
 _JPEG_COM = 0xFE
 
 _COM_SEGMENT_LENGTH_BYTES = 2
@@ -344,7 +332,7 @@ def _byte_view(image_bit) -> memoryview:
 
 def _has_rgb_marker(image_bit) -> bool:
     """
-    Whether a buffer is a standard RGB JPEG stamped by `encode_image_bit`.
+    Whether a buffer is a standard RGB JPEG stamped with the RGB marker.
 
     The header segments are walked rather than probing a fixed offset, so the
     marker is still found if another tool inserted a segment of its own ahead of
@@ -394,30 +382,6 @@ def _has_rgb_marker(image_bit) -> bool:
         offset += 2 + length
 
     return False
-
-
-def _insert_rgb_marker(jpeg_bytes: bytes) -> bytes:
-    """
-    Stamp a JPEG COM segment marking the stream as standard RGB.
-
-    The segment goes after the JFIF APP0 rather than straight after SOI: JFIF
-    requires APP0 to follow SOI immediately, and a hand-written parser that
-    relies on that layout would otherwise trip over the marker.
-    """
-    segment = (
-        bytes([_JPEG_PAD, _JPEG_COM])
-        + _RGB_MARKER_SEGMENT_LENGTH.to_bytes(2, "big")
-        + _RGB_MARKER_PAYLOAD
-    )
-
-    offset = 2
-
-    if len(jpeg_bytes) >= 6 and jpeg_bytes[2:4] == bytes([_JPEG_PAD, _JPEG_APP0]):
-        app0_end = 4 + int.from_bytes(jpeg_bytes[4:6], "big")
-        if app0_end <= len(jpeg_bytes):
-            offset = app0_end
-
-    return jpeg_bytes[:offset] + segment + jpeg_bytes[offset:]
 
 
 def _decode_single_image_bit(image_bit):
@@ -594,170 +558,3 @@ def decode_obs_images(obs):
 
     return obs
 
-def _encode_single_image_bit(image, quality=None):
-    """Encode one uint8 RGB image into a marked standard JPEG buffer."""
-    array = np.asarray(image)
-
-    if array.dtype != np.uint8:
-        raise TypeError(
-            f"Expected a uint8 RGB image, got dtype {array.dtype}. Scale and cast "
-            "before encoding — a float array is ambiguous between [0, 1] and "
-            "[0, 255], and guessing is how channel and range bugs start."
-        )
-
-    if array.ndim != 3 or array.shape[-1] != 3:
-        raise ValueError(
-            f"Expected one (H, W, 3) RGB image, got shape {array.shape}. "
-            "Grayscale is not supported, and an RGBA frame must be sliced to "
-            "[..., :3] first."
-        )
-
-    params = [] if quality is None else [int(cv2.IMWRITE_JPEG_QUALITY), int(quality)]
-    bgr = cv2.cvtColor(np.ascontiguousarray(array), cv2.COLOR_RGB2BGR)
-    success, encoded_image = cv2.imencode(".jpg", bgr, params)
-
-    if not success:
-        raise ValueError(f"Failed to JPEG-encode an RGB frame of shape {array.shape}.")
-
-    return _insert_rgb_marker(encoded_image.tobytes())
-
-
-def _passthrough_encoded_buffer(image_bit):
-    """
-    Return an already-encoded buffer unchanged, refusing legacy bytes.
-
-    Relabelling a legacy buffer as standard RGB is the one way this scheme can
-    silently reverse channels, so an unmarked buffer is an error rather than a
-    no-op.
-    """
-    image_bit = _normalize_image_buffer(image_bit)
-
-    if not _has_rgb_marker(image_bit):
-        raise ValueError(
-            "Refusing to pass through an unmarked image buffer: it is in the "
-            "legacy channel-reversed format, and stamping it as standard RGB "
-            "would reverse its channels. Decode it with decode_image_bit and "
-            "encode the resulting array if a lossy re-encode is intended."
-        )
-
-    if isinstance(image_bit, (bytes, bytearray)):
-        return bytes(image_bit)
-
-    # Strip the same NUL padding _normalize_image_buffer takes off the bytes
-    # form, so a buffer read out of a fixed-width HDF5 column does not carry its
-    # padding into whatever column it is stored in next.
-    return np.asarray(image_bit).reshape(-1).tobytes().rstrip(b"\0")
-
-
-def _encode_image_bit_sequence(images, quality):
-    buffers = []
-
-    for index, image in enumerate(images):
-        try:
-            buffers.append(encode_image_bit(image, quality=quality))
-        except (ValueError, TypeError) as exc:
-            raise type(exc)(f"Frame {index}: {exc}") from exc
-
-    return buffers
-
-
-def encode_image_bit(images, quality=None):
-    """
-    Encode uint8 RGB image(s) into the image bit stream(s) that
-    `decode_image_bit` reads back, and mark them as standard RGB.
-
-    This is the inverse of `decode_image_bit` and the only supported encoder.
-    The buffers it produces are conforming RGB JPEGs, so PIL, ffmpeg, a dataset
-    viewer or a browser all show the right colours, and they carry a JPEG COM
-    marker so `decode_image_bit` knows not to treat them as legacy
-    channel-reversed data. Encoding by hand with `cv2.imencode` skips the
-    marker, so the buffer can only be read as legacy: channel-reversed on
-    decode if the frame was converted to BGR before encoding, and even when
-    fed RGB it mints more legacy data that every conforming viewer shows
-    reversed.
-
-    Dispatch mirrors `decode_image_bit`, on dtype first, then ndim:
-        - uint8 ndarray, ndim == 3      -> one (H, W, 3) RGB image  -> bytes
-        - uint8 ndarray, ndim == 4      -> (T, H, W, 3) stack       -> list[bytes]
-        - list / tuple                  -> element-wise             -> list[bytes]
-        - bytes / bytearray / memoryview / str, uint8 ndarray with ndim == 1,
-          and ndarray of dtype kind 'S', 'U', 'O'
-                                        -> already encoded, returned as bytes
-        - uint8 ndarray, ndim == 2      -> stack of encoded buffers -> list[bytes]
-
-    Grayscale is not supported, matching `decode_image_bit`: a 2-D uint8 array
-    is always read as a stack of already-encoded buffers, never as one image.
-
-    Args:
-        images: One RGB image, a sequence of them, or already-encoded buffers.
-        quality: Optional JPEG quality; OpenCV's default is used when omitted.
-
-    Returns:
-        bytes for a single image, list[bytes] for a sequence.
-
-    Raises:
-        TypeError: if image data is not uint8.
-        ValueError: if a frame has an unsupported shape, fails to encode, or is
-            an already-encoded buffer in the legacy format.
-    """
-    if isinstance(images, (bytes, bytearray, memoryview, str)):
-        return _passthrough_encoded_buffer(images)
-
-    if isinstance(images, np.ndarray):
-        if images.dtype.kind in {"S", "U", "O"}:
-            if images.ndim == 0:
-                return _passthrough_encoded_buffer(images.item())
-            return _encode_image_bit_sequence(images, quality)
-
-        if images.dtype == np.uint8:
-            if images.ndim == 0:
-                raise ValueError(
-                    "Expected an RGB image or a sequence of them, got a 0-d uint8 "
-                    "array."
-                )
-            if images.ndim == 1:
-                return _passthrough_encoded_buffer(images)
-            if images.ndim == 3:
-                return _encode_single_image_bit(images, quality)
-            if images.ndim == 2:
-                # Ambiguous shape, so say which reading was attempted: the most
-                # likely way to land here is passing a grayscale frame.
-                try:
-                    return _encode_image_bit_sequence(images, quality)
-                except (ValueError, TypeError) as exc:
-                    raise ValueError(
-                        "A 2-D uint8 array is read as a stack of already-encoded "
-                        "buffers, never as a grayscale image, and this one is not "
-                        f"a valid stack: {exc}"
-                    ) from exc
-            return _encode_image_bit_sequence(images, quality)
-
-        raise TypeError(
-            f"Expected uint8 image data, got an array of dtype {images.dtype}. "
-            "Scale and cast before encoding."
-        )
-
-    if isinstance(images, (list, tuple)):
-        return _encode_image_bit_sequence(images, quality)
-
-    return _encode_single_image_bit(images, quality)
-
-
-def images_encoding(imgs):
-    """
-    JPEG-encode RGB frames for storage in the moravec_policy layout and report the
-    width of the fixed-size HDF5 byte column they fit into, which pads the
-    shorter buffers with NUL on write.
-
-    Feed this RGB, never BGR and never a channel-swapped array. Encoding runs
-    through `encode_image_bit`, so the buffers are conforming RGB JPEGs marked
-    for `decode_image_bit`.
-    """
-    encode_data = encode_image_bit(imgs)
-
-    if isinstance(encode_data, bytes):
-        encode_data = [encode_data]
-
-    max_len = max((len(jpeg_data) for jpeg_data in encode_data), default=0)
-
-    return encode_data, max_len

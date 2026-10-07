@@ -35,7 +35,7 @@ Each `policy/<name>/model.py` exposes `Model(model_cfg)` with:
 - `get_action()`: return an ordered list of action dictionaries.
 - Optional `update_obs_batch(obs_list)` and `get_action_batch(env_idx_list=None)` for adapters that support batching.
 
-Observations carry an instruction, named cameras under `vision`, and robot state under `state`. The demo roundtrip shows three RGB cameras and joint state. That is an example, not a universal model requirement: use the selected policy's documented camera and state mapping. Images are decoded at the server boundary by the existing image utilities. GR00T's `io_format: native` deliberately preserves its checkpoint-specific `video`, `state`, and `language` dictionaries; see its example for the LIBERO mapping.
+Observations carry an instruction, named cameras under `vision`, and robot state under `state`. The demo roundtrip shows three RGB cameras and joint state. That is an example, not a universal model requirement: use the selected policy's documented camera and state mapping. Images are decoded at the server boundary by the existing image utilities. GR00T instead takes its checkpoint's native `video`, `state`, and `language` dictionaries; see its example for the LIBERO mapping.
 
 For our bimanual joint examples, actions use `left_arm_joint_state`, `right_arm_joint_state`, `left_ee_joint_state`, and `right_ee_joint_state`. End-effector examples replace arm joint arrays with `left_ee_pose` and `right_ee_pose`; the demo uses `[x, y, z, qw, qx, qy, qz]`. Coordinate frames and absolute/delta interpretation must agree with the checkpoint and evaluator. The evaluator executes action chunks and supplies subsequent observations.
 
@@ -43,7 +43,7 @@ For our bimanual joint examples, actions use `left_arm_joint_state`, `right_arm_
 
 `deploy.yml` selects the policy, host, port, action type, environment configuration, and model-specific checkpoint settings. Install the core with `python -m pip install -e .`; follow the model README for its separate runtime and weights.
 
-The installed Python namespace is `moravec_policy`; the checkout folder can have any name. Install it with `python -m pip install -e .` in each policy/evaluator environment. External evaluators should import `moravec_policy.policy.<name>.deploy`. Keep the evaluator's `env_cfg/` beside this checkout. Runtime helpers load robot dimensions and simulator batch size from that neighboring configuration. For YAM, copy the local `utils/robot/_robot_info.json` entry into the evaluator registry and supply its environment configuration.
+The installed Python namespace is `moravec_policy`; the checkout folder can have any name. Install it with `python -m pip install -e .` in each policy/evaluator environment. External evaluators should import `moravec_policy.policy.<name>.deploy`. `env_cfg_type` names a robot in `utils/robot/_robot_info.json`, which supplies its arm and gripper dimensions; add an entry there for a new robot.
 
 ## Remote serving
 

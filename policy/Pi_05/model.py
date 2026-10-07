@@ -9,7 +9,7 @@ from openpi.policies import policy_config
 from openpi.training import config as openpi_config
 
 from moravec_policy.model_template import ModelTemplate
-from moravec_policy.utils.checkpoint_resolver import candidate_checkpoint_roots
+from moravec_policy.utils.paths import resolve_policy_path
 from moravec_policy.utils.process_data import (
     get_robot_action_dim_info,
     pack_robot_state,
@@ -18,66 +18,6 @@ from moravec_policy.utils.process_data import (
 
 
 _POLICY_DIR = Path(__file__).resolve().parent
-_CHECKPOINTS_DIR = _POLICY_DIR / "checkpoints"
-
-
-def _extract_step_number(value: Any) -> int | None:
-    matches = [part for part in str(value).split("/") if part]
-    if not matches:
-        return None
-    digits = "".join(ch for ch in matches[-1] if ch.isdigit())
-    return int(digits) if digits else None
-
-
-def _resolve_pi05_model_root(model_cfg: dict[str, Any]) -> Path:
-    # Shared precedence: model_path/checkpoint_path keys > ckpt_name-as-path >
-    # {bench}-{ckpt}-{env}-{action}-{seed} concat > checkpoints/<ckpt_name>.
-    candidates = candidate_checkpoint_roots(
-        model_cfg,
-        _CHECKPOINTS_DIR,
-        policy_dir=_POLICY_DIR,
-        explicit_keys=("model_path", "checkpoint_path"),
-    )
-    if not candidates:
-        raise ValueError("ckpt_name or model_path is required for Pi_05.")
-    checkpoint_root = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
-    if not checkpoint_root.is_dir():
-        return checkpoint_root
-
-    candidate_dirs = []
-    if (checkpoint_root / "params").exists() or (checkpoint_root / "assets").exists():
-        candidate_dirs.append(checkpoint_root)
-    candidate_dirs.extend(
-        child
-        for child in sorted(checkpoint_root.iterdir())
-        if child.is_dir() and ((child / "params").exists() or (child / "assets").exists())
-    )
-    if not candidate_dirs:
-        return checkpoint_root
-
-    checkpoint_num = model_cfg.get("checkpoint_num")
-    desired_step = _extract_step_number(checkpoint_num)
-    if desired_step is not None:
-        normalized = str(desired_step)
-        for candidate in candidate_dirs:
-            name = candidate.name.lstrip("0") or "0"
-            if name == normalized:
-                return candidate
-
-        for candidate in candidate_dirs:
-            candidate_step = _extract_step_number(candidate.name)
-            if candidate_step is None:
-                continue
-            scaled_step = desired_step
-            while len(str(scaled_step)) < len(str(candidate_step)):
-                scaled_step *= 10
-            if candidate_step in {desired_step, scaled_step}:
-                return candidate
-
-    numeric_dirs = [candidate for candidate in candidate_dirs if _extract_step_number(candidate.name) is not None]
-    if numeric_dirs:
-        return max(numeric_dirs, key=lambda candidate: _extract_step_number(candidate.name) or -1)
-    return candidate_dirs[0]
 
 
 class Model(ModelTemplate):
@@ -87,9 +27,7 @@ class Model(ModelTemplate):
         self.robot_action_dim_info = (
             get_robot_action_dim_info(model_cfg["env_cfg_type"]) if model_cfg.get("env_cfg_type") is not None else None
         )
-        self.observation_window: dict[str, Any] | None = None
-        self._latest_env_idx_list: list[int] = [0]
-
+        self.reset()
         self.policy = self.get_model(model_cfg=model_cfg)
         self.model = self.policy
 
@@ -97,7 +35,9 @@ class Model(ModelTemplate):
         # openpi's ALOHA recipe: three cameras (cam_high, cam_left_wrist,
         # cam_right_wrist), 14-D state of 6 joints + 1 gripper per arm, and
         # delta joint actions. Only inference fields are needed.
-        model_root = _resolve_pi05_model_root(model_cfg)
+        model_root = resolve_policy_path(_POLICY_DIR, model_cfg["model_path"])
+        if not (model_root / "params").is_dir():
+            raise FileNotFoundError(f"No openpi checkpoint (params/) in {model_root}")
         train_config = openpi_config.TrainConfig(
             name="pi05_aloha_moravec",
             model=pi0_config.Pi0Config(pi05=True),
@@ -116,28 +56,22 @@ class Model(ModelTemplate):
         self.update_obs_batch([obs])
 
     def update_obs_batch(self, obs_list):
-        self._latest_env_idx_list = [obs.get("env_idx", index) for index, obs in enumerate(obs_list)]
-        encoded_obs_list = [
-            encode_obs(obs, self.action_type, self.robot_action_dim_info) for obs in obs_list
-        ]
-        self.observation_window = stack_obs(encoded_obs_list)
+        self._order = [obs.get("env_idx", index) for index, obs in enumerate(obs_list)]
+        self._obs = {index: encode_obs(obs, self.action_type, self.robot_action_dim_info)
+                     for index, obs in zip(self._order, obs_list)}
 
     def get_action(self, **kwargs):
-        action_list = self.get_action_batch(env_idx_list=[self._latest_env_idx_list[0]], **kwargs)
-        return action_list[0]
+        return self.get_action_batch(env_idx_list=[self._order[0]], **kwargs)[0]
 
     def get_action_batch(self, env_idx_list=None, **kwargs):
-        if self.observation_window is None:
-            raise AssertionError("update_obs or update_obs_batch first!")
-
-        env_idx_list = self._latest_env_idx_list if env_idx_list is None else env_idx_list
-        # actions = self.policy.infer(self.observation_window, **kwargs)["actions"]
+        env_idx_list = self._order if env_idx_list is None else env_idx_list
+        missing = [index for index in env_idx_list if index not in self._obs]
+        if missing:
+            raise ValueError(f"No observation for env_idx {missing}; call update_obs first")
         action_list = []
-
+        # openpi infers one observation at a time.
         for env_idx in env_idx_list:
-            batch_index = self._latest_env_idx_list.index(env_idx)
-            single_observation = slice_stacked_obs(self.observation_window, batch_index)
-            actions = self.policy.infer(single_observation, **kwargs)["actions"]
+            actions = self.policy.infer(self._obs[env_idx], **kwargs)["actions"]
             if self.robot_action_dim_info is None:
                 action_list.append(actions)
             else:
@@ -153,8 +87,8 @@ class Model(ModelTemplate):
         return action_list
 
     def reset(self):
-        self.observation_window = None
-        self._latest_env_idx_list = [0]
+        self._obs: dict[int, dict[str, Any]] = {}
+        self._order: list[int] = [0]
 
 
 def encode_obs(observation, action_type, robot_action_dim_info):
@@ -183,30 +117,6 @@ def encode_obs(observation, action_type, robot_action_dim_info):
     state = pack_robot_state(observation, action_type, robot_action_dim_info, source_type="obs").astype(np.float32)
     prompt = observation.get("instruction")
     return {"state": state, "images": images, "prompt": prompt}
-
-
-def stack_obs(obs_list: list[dict[str, Any]]) -> dict[str, Any]:
-    return {
-        "state": np.stack([obs["state"] for obs in obs_list], axis=0),
-        "images": {
-            "cam_high": np.stack([obs["images"]["cam_high"] for obs in obs_list], axis=0),
-            "cam_left_wrist": np.stack([obs["images"]["cam_left_wrist"] for obs in obs_list], axis=0),
-            "cam_right_wrist": np.stack([obs["images"]["cam_right_wrist"] for obs in obs_list], axis=0),
-        },
-        "prompt": [obs["prompt"] for obs in obs_list],
-    }
-
-
-def slice_stacked_obs(obs: dict[str, Any], batch_index: int) -> dict[str, Any]:
-    return {
-        "state": obs["state"][batch_index],
-        "images": {
-            "cam_high": obs["images"]["cam_high"][batch_index],
-            "cam_left_wrist": obs["images"]["cam_left_wrist"][batch_index],
-            "cam_right_wrist": obs["images"]["cam_right_wrist"][batch_index],
-        },
-        "prompt": obs["prompt"][batch_index],
-    }
 
 
 def extract_image(observation, candidate_names):

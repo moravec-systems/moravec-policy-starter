@@ -16,9 +16,6 @@ RUN git clone https://github.com/OpenWAM-Official/OpenWAM /opt/OpenWAM \
     && python -m pip install --no-deps -e /opt/OpenWAM
 COPY . /app
 RUN python -m pip install --no-deps -e /app \
-    && mkdir -p /env_cfg/robot \
-    && cp utils/robot/_robot_info.json /env_cfg/robot/_robot_info.json \
-    && printf 'config:\n  robot: arx_x5\n' > /env_cfg/arx_x5.yml \
     && python -c "from moravec_policy.policy.OpenWAM.model import Model; from openwam.deploy.server import build_server_from_config"
 EXPOSE 6000
 # The WebSocket opens after checkpoint initialization; this does not test inference.
