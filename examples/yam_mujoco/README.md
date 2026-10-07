@@ -55,6 +55,6 @@ Earlier results, measured before those contact settings were added (when even a 
 
 With the current settings:
 
-- Astra (`gpt-6-astra`, about 5 s per call, block position not given in the prompt) runs a correct approach, descend, close, lift sequence and retries after a miss. In one logged 15-call run it lifted the block 10 cm on its third attempt and was carrying it toward the plate when the call budget ran out; in two 30-call runs its grasps landed 1.5–2.5 cm off centre and slipped. The limiting factor is placement precision from images: it does not use the wrist camera to centre before closing, and it cannot rotate the gripper.
+- Astra (`gpt-6-astra`, RoboProbe-style agent, medium reasoning, about 6 s per call, block position not given) aligns the jaws with the block by turning yaw, descends in millimetre steps, checks that the block follows before lifting, and retries after a slip. Across two 40-call episodes and one logged 25-call run it never placed the block: each grasp closed about 1.6 cm off centre while its notes reported the block centred, because the wrist camera sits beside the jaws rather than between them. A small lift (about 1.4 cm) slipped out every time.
 
 The checkpoints and agents were not tuned for this uncalibrated scene (textures, lighting, camera intrinsics, start pose, and an assumed 30 Hz control rate), so treat task success here as a smoke signal only.

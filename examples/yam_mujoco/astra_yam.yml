@@ -6,16 +6,43 @@ port: 6000
 action_type: ee
 eval_batch: false
 model: gpt-6-astra
-reasoning_effort: low
-image_size: 384
+reasoning_effort: medium
+max_llm_calls: 100
+# The scene reports the fingertip centre (i2rt tcp sites); +z of that frame points down at [0, 1, 0, 0].
+down_quat_wxyz: [0, 1, 0, 0]
+grasp_offset_m: 0.0
+control_hz: 30
 max_step_m: 0.01
-max_chunk: 100
+max_step_deg: 3.0
+max_duration_s: 10.0
 gripper_dwell_steps: 15
-scene_notes: >-
-  Two YAM arms on a table, viewed by an overhead camera ("top", looking forward over the arms)
-  and a camera on each wrist ("left", "right"). World frame: +z up, the table surface is z = 0,
-  +x points forward away from the arm bases. The left arm base is at (0, 0, 0) and the right
-  arm base at (0, -0.61, 0); each reaches about 0.45 m. Positions you command and receive are
-  the centre between the two fingertips, so to grasp an object resting on the table put that
-  point at the object's centre height. The grippers point straight down. Objects of interest
-  lie between the arms at x between 0.2 and 0.45.
+bounds:
+  left_x: [0.05, 0.5]
+  left_y: [-0.45, 0.2]
+  left_z: [0.005, 0.4]
+  right_x: [0.05, 0.5]
+  right_y: [-0.81, -0.16]
+  right_z: [0.005, 0.4]
+embodiment_notes: |
+  Two identical 6-DoF YAM arms, prefixed left_ and right_, each with a parallel-jaw gripper,
+  on a table. World frame: +z is up, the table surface is at z = 0, and +x points forward away
+  from the arm bases. The left base is at (0, 0, 0) and the right base at (0, -0.61, 0), so the
+  workspace between the arms is around y = -0.3; each grasp point reaches about 0.45 m.
+  Cameras: "top" looks forward and down over both arms; "left" and "right" ride the wrists and
+  look along the jaws.
+  Every position, commanded and reported, is the point between the fingertips where an object
+  is held. To grasp something resting on the table, name that object's own centre: no tool
+  offset is yours to add. Gripper 0 is fully closed, 1 is fully open, and commanding 0 always
+  closes as far as the object allows. The jaws close along one horizontal direction that turns
+  with yaw_deg; an object squeezed off-centre or across a corner slips out, so line the jaws up
+  with flat faces and centre the object between them before closing.
+  Each wrist camera rides its own arm, so which views you have is itself something you can
+  command. When the top camera cannot show the gap between the jaws and the object, use the
+  working arm's wrist view, or move the idle arm until its wrist looks at the work.
+  Scale every motion to how close it is to touching something. Full-size moves belong in free
+  space; once the jaws are within about a centimetre of the object, the table, or wherever a
+  held object is going down, keep corrections to a few millimetres per call and re-read the
+  cameras between them. A carried object extends the hand, so measure that centimetre from the
+  edges of whatever is held, not from the jaws.
+  Large rotations are more reliable in two or three steps than in one, and travelling to a new
+  position before turning the tool is more reliable than doing both at once.
