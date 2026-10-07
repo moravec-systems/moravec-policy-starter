@@ -21,6 +21,7 @@ GRIPPER_TRAVEL = 0.04695  # joint7 range; command 0 = closed, 1 = open (i2rt con
 CAMERAS = {"top": "top_camera", "left": "left_camera", "right": "right_camera"}
 BLOCK_START = np.array([0.32, -0.22, 0.02])
 PLATE_POS = np.array([0.32, -0.40, 0.003])
+READY_QUAT = np.array([0.0, 1.0, 0.0, 0.0])  # fingertip frame +z pointing down
 
 
 def build(station: Path = STATION) -> mujoco.MjModel:
@@ -82,7 +83,12 @@ def build(station: Path = STATION) -> mujoco.MjModel:
 
 
 class YamTabletop:
-    """Steps the scene with absolute joint targets and renders the three cameras."""
+    """Steps the scene with absolute joint or end-effector targets and renders the three cameras.
+
+    End-effector poses are the fingertip centre (i2rt's `tcp_left`/`tcp_right` sites) in the
+    world frame as [x, y, z, qw, qx, qy, qz]; targets are converted to joint targets with
+    damped least-squares inverse kinematics.
+    """
 
     def __init__(self, control_hz: float = 30.0, image_size=(480, 640)):
         self.model = build()
@@ -92,6 +98,8 @@ class YamTabletop:
         self.qpos_ids = {arm: [self.model.joint(f"{arm}_joint{j}").qposadr[0] for j in range(1, 8)] for arm in ARMS}
         self.act_ids = {arm: [self.model.actuator(f"{arm}_joint{j}").id for j in range(1, 7)]
                         + [self.model.actuator(f"{arm}_gripper").id] for arm in ARMS}
+        self.dof_ids = {arm: [self.model.joint(f"{arm}_joint{j}").dofadr[0] for j in range(1, 7)] for arm in ARMS}
+        self._ik_data = mujoco.MjData(self.model)
         self.reset()
 
     def reset(self, arm_qpos=None, gripper: float = 1.0):
@@ -118,15 +126,71 @@ class YamTabletop:
         for _ in range(self.substeps):
             mujoco.mj_step(self.model, self.data)
 
+    def ee_pose(self, arm, data=None) -> np.ndarray:
+        data = self.data if data is None else data
+        site = data.site(f"tcp_{arm}")
+        quat = np.empty(4)
+        mujoco.mju_mat2Quat(quat, site.xmat)
+        return np.concatenate([site.xpos, quat])
+
+    def solve_ik(self, arm, target_pose, iterations=100, damping=1e-3) -> np.ndarray:
+        """Joint angles that place the arm's fingertip centre at target_pose, starting from its current joints."""
+        target_pose = np.asarray(target_pose, dtype=float).reshape(7)
+        data = self._ik_data
+        data.qpos[:] = self.data.qpos
+        site_id = self.model.site(f"tcp_{arm}").id
+        dofs, qadr = self.dof_ids[arm], self.qpos_ids[arm][:6]
+        jac_pos, jac_rot = np.zeros((3, self.model.nv)), np.zeros((3, self.model.nv))
+        error = np.zeros(6)
+        for _ in range(iterations):
+            mujoco.mj_kinematics(self.model, data)
+            mujoco.mj_comPos(self.model, data)
+            current = self.ee_pose(arm, data)
+            error[:3] = target_pose[:3] - current[:3]
+            local = np.zeros(3)
+            mujoco.mju_subQuat(local, target_pose[3:], current[3:])
+            error[3:] = data.site(f"tcp_{arm}").xmat.reshape(3, 3) @ local  # Jacobian is in the world frame
+            if np.linalg.norm(error[:3]) < 1e-4 and np.linalg.norm(error[3:]) < 1e-3:
+                break
+            mujoco.mj_jacSite(self.model, data, jac_pos, jac_rot, site_id)
+            jac = np.vstack([jac_pos, jac_rot])[:, dofs]
+            step = jac.T @ np.linalg.solve(jac @ jac.T + damping * np.eye(6), error)
+            step *= min(1.0, 0.2 / max(np.abs(step).max(), 1e-9))  # at most 0.2 rad per iteration
+            q = data.qpos[qadr] + step
+            data.qpos[qadr] = np.clip(q, self.model.jnt_range[[self.model.joint(f"{arm}_joint{j}").id for j in range(1, 7)], 0],
+                                      self.model.jnt_range[[self.model.joint(f"{arm}_joint{j}").id for j in range(1, 7)], 1])
+        return data.qpos[qadr].copy()
+
+    def step_ee(self, action: dict):
+        """Step with end-effector targets ({arm}_ee_pose, {arm}_ee_joint_state)."""
+        joints = {}
+        for arm in ARMS:
+            joints[f"{arm}_arm_joint_state"] = self.solve_ik(arm, action[f"{arm}_ee_pose"])
+            joints[f"{arm}_ee_joint_state"] = action[f"{arm}_ee_joint_state"]
+        self.step(joints)
+
+    def move_to_ready(self, seconds: float = 2.0):
+        """Raise both grippers above the table, pointing straight down and open."""
+        ready = {"left": [0.25, -0.05, 0.20], "right": [0.25, -0.56, 0.20]}
+        action = {}
+        for arm, xyz in ready.items():
+            action[f"{arm}_ee_pose"] = np.concatenate([xyz, READY_QUAT])
+            action[f"{arm}_ee_joint_state"] = [1.0]
+        for _ in range(round(seconds / (self.substeps * self.model.opt.timestep))):
+            self.step_ee(action)
+
     def render(self, camera: str) -> np.ndarray:
         self.renderer.update_scene(self.data, camera=camera)
         return self.renderer.render().copy()
 
-    def observation(self, instruction: str) -> dict:
+    def observation(self, instruction: str, action_type: str = "joint") -> dict:
         state = {}
         for arm in ARMS:
             q = self.data.qpos[self.qpos_ids[arm]]
-            state[f"{arm}_arm_joint_state"] = q[:6].astype(np.float32)
+            if action_type == "ee":
+                state[f"{arm}_ee_pose"] = self.ee_pose(arm).astype(np.float32)
+            else:
+                state[f"{arm}_arm_joint_state"] = q[:6].astype(np.float32)
             state[f"{arm}_ee_joint_state"] = np.array([q[6] / GRIPPER_TRAVEL], dtype=np.float32)
         return {"instruction": instruction, "state": state,
                 "vision": {name: {"color": self.render(name)} for name in CAMERAS}}

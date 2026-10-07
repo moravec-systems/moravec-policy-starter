@@ -1,0 +1,21 @@
+# Astra LLM agent configured for the YAM MuJoCo scene (run_episode.py --action-type ee).
+policy_name: GPT_6_Astra_Direct_EEF
+protocol: ws
+host: 127.0.0.1
+port: 6000
+action_type: ee
+eval_batch: false
+model: gpt-6-astra
+reasoning_effort: low
+image_size: 384
+max_step_m: 0.01
+max_chunk: 100
+gripper_dwell_steps: 15
+scene_notes: >-
+  Two YAM arms on a table, viewed by an overhead camera ("top", looking forward over the arms)
+  and a camera on each wrist ("left", "right"). World frame: +z up, the table surface is z = 0,
+  +x points forward away from the arm bases. The left arm base is at (0, 0, 0) and the right
+  arm base at (0, -0.61, 0); each reaches about 0.45 m. Positions you command and receive are
+  the centre between the two fingertips, so to grasp an object resting on the table put that
+  point at the object's centre height. The grippers point straight down. Objects of interest
+  lie between the arms at x between 0.2 and 0.45.
