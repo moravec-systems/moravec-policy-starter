@@ -38,3 +38,4 @@ MUJOCO_LOG.TXT
 # Local package build output
 /build/
 /dist/
+/examples/yam_mujoco/i2rt/

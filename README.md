@@ -28,6 +28,8 @@ A policy is a `policy/<name>/model.py` exposing `Model(deploy_cfg)` with `reset(
 
 Each README covers setup, weights, the container, and a `check_client.py` that requests real inference without executing actions. Model code is installed from its original repository at a pinned commit (or, for MolmoAct2, its pinned Hugging Face snapshot); weights are downloaded separately and never stored in Git or images.
 
+To run a YAM policy closed loop before real evaluation, use the [YAM MuJoCo check](examples/yam_mujoco/README.md): a bimanual YAM tabletop scene with top and wrist cameras for joint or end-effector policy servers.
+
 ## Robots
 
 `env_cfg_type` in `deploy.yml` names a robot in `utils/robot/_robot_info.json`, which supplies its arm and gripper dimensions. All setups are bimanual:
