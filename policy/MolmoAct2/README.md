@@ -21,7 +21,7 @@ This snapshot includes executable model/processor source loaded with `trust_remo
 
 ## Observation and action contract
 
-This example requires `env_cfg_type: yam` and `action_type: joint`. Supply the evaluator's neighboring `env_cfg/` as described in the [integration guide](../../INTEGRATION.md). Its YAM registry must specify `arm_dim: [6, 6]` and `ee_dim: [1, 1]`. Matching dimensions alone do not establish hardware compatibility.
+This example requires `env_cfg_type: yam` (dimensions from `utils/robot/_robot_info.json`: `arm_dim: [6, 6]`, `ee_dim: [1, 1]`) and `action_type: joint`. Matching dimensions alone do not establish hardware compatibility.
 
 Each observation contains a nonempty `instruction`, three decoded HWC uint8 RGB images under `vision`, and the shared bimanual `state` dictionary. Camera order is fixed:
 
@@ -71,17 +71,12 @@ environment. Never put credentials in build arguments or the image. The download
 includes the pinned executable checkpoint source, which is loaded with
 `trust_remote_code=True` as described above.
 
-Set `MORAVEC_ENV_CFG` to the absolute path of your evaluator's `env_cfg/`, containing
-`yam.yml` (`config.robot: yam`) and `robot/_robot_info.json` with the YAM dimensions
-described above. The runtime resolves this directory at `/env_cfg` beside `/app`.
-
 ```sh
 docker run --rm --name moravec-molmoact2 --gpus all --shm-size=2g \
   -p 127.0.0.1:6000:6000 \
   -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
   -v moravec-molmoact2-weights:/app/policy/MolmoAct2/checkpoints:ro \
   -v moravec-molmoact2-cache:/cache/huggingface \
-  --mount "type=bind,src=${MORAVEC_ENV_CFG:?Set MORAVEC_ENV_CFG},dst=/env_cfg,readonly" \
   moravec-molmoact2:demo
 ```
 

@@ -43,7 +43,7 @@ For our bimanual joint examples, actions use `left_arm_joint_state`, `right_arm_
 
 `deploy.yml` selects the policy, host, port, action type, environment configuration, and model-specific checkpoint settings. Install the core with `python -m pip install -e .`; follow the model README for its separate runtime and weights.
 
-The installed Python namespace is `moravec_policy`; the checkout folder can have any name. Install it with `python -m pip install -e .` in each policy/evaluator environment. External evaluators should import `moravec_policy.policy.<name>.deploy`. Keep the evaluator's `env_cfg/` beside this checkout. Runtime helpers load robot dimensions and simulator batch size from that neighboring configuration. For YAM, copy the local `utils/robot/_robot_info.json` entry into the evaluator registry and supply its environment configuration.
+The installed Python namespace is `moravec_policy`; the checkout folder can have any name. Install it with `python -m pip install -e .` in each policy/evaluator environment. External evaluators should import `moravec_policy.policy.<name>.deploy`. `env_cfg_type` names a robot in `utils/robot/_robot_info.json`, which supplies its arm and gripper dimensions; add an entry there for a new robot.
 
 ## Remote serving
 

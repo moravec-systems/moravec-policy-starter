@@ -52,11 +52,11 @@ Run the hardware-free example:
 python scripts/demo_roundtrip.py
 ```
 
-It starts a local WebSocket server, sends three synthetic RGB camera images and joint state, and checks action shapes, batching, and reset for YAM, ARX X5, and generic Franka dimensions in joint and end-effector modes. Temporary evaluator configuration is deleted on exit. It does not run learned inference or simulation, and the demo ignores observation content.
+It starts a local WebSocket server, sends three synthetic RGB camera images and joint state, and checks action shapes, batching, and reset for YAM, ARX X5, and generic Franka dimensions in joint and end-effector modes. It does not run learned inference or simulation, and the demo ignores observation content.
 
 The evaluator sends observations through the existing client; the policy implements `update_obs`, `get_action`, and `reset` (and batching where supported). The evaluator owns simulator or hardware control, task setup, and scoring.
 
-Keep the evaluator's `env_cfg/` beside this checkout; the checkout folder can have any name. Runtime helpers read robot metadata from `env_cfg/robot/_robot_info.json`; when using YAM, copy the `yam` entry from this repository into that evaluator registry. Matching environment and simulator YAML files are also required. This repository alone does not supply a runnable YAM simulator.
+`env_cfg_type` in `deploy.yml` names a robot in `utils/robot/_robot_info.json` (`yam`, `arx_x5`, `franka`), which supplies its arm and gripper dimensions. The evaluator's own robot configuration must agree with it.
 
 The demo emits zero actions, which can command motion under absolute control. Use it only for offline or simulation wiring checks.
 
