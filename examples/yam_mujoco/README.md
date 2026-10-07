@@ -47,6 +47,14 @@ The simulation runs on CPU, so it can run on a laptop while the policy runs on a
 
 ## What to expect
 
-With MolmoAct2-BimanualYAM (30-step chunks, about 0.4 s per call on an L40S), two 45-second episodes on the pinned i2rt model behaved alike: the left arm reaches the block, repeatedly attempts a grasp, and nudges it 2–3 cm, once lifting it about 1.6 cm before losing it; neither episode placed it on the plate. The checkpoint was trained on real YAM data, and this scene's textures, lighting, camera intrinsics, start pose and contact model are not calibrated to Ai2's setup; the 30 Hz control rate is also an assumption. Treat task success here as a smoke signal only.
+The scene uses grasp-friendly contact settings (elliptic friction cone, `impratio` 10, no-slip iterations, stiffer contacts, higher fingertip friction, 80 N grip force). A scripted pick-and-place succeeds with up to 1 cm of misalignment; beyond about 1.5 cm across the finger pads the block slips, as on a real parallel gripper.
 
-With the Astra agent (`gpt-6-astra`, about 5 s per call, block position not given in the prompt), one 15-call episode located the block from the images and brought the left gripper to it within a few calls, then hovered and nudged it 7 cm without closing on it.
+Earlier results, measured before those contact settings were added (when even a perfectly centred grasp slipped):
+
+- MolmoAct2-BimanualYAM (30-step chunks, about 0.4 s per call on an L40S), two 45-second episodes: the left arm reached the block and repeatedly attempted grasps, once lifting it about 1.6 cm.
+
+With the current settings:
+
+- Astra (`gpt-6-astra`, about 5 s per call, block position not given in the prompt) runs a correct approach, descend, close, lift sequence and retries after a miss. In one logged 15-call run it lifted the block 10 cm on its third attempt and was carrying it toward the plate when the call budget ran out; in two 30-call runs its grasps landed 1.5–2.5 cm off centre and slipped. The limiting factor is placement precision from images: it does not use the wrist camera to centre before closing, and it cannot rotate the gripper.
+
+The checkpoints and agents were not tuned for this uncalibrated scene (textures, lighting, camera intrinsics, start pose, and an assumed 30 Hz control rate), so treat task success here as a smoke signal only.
