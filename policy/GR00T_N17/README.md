@@ -30,7 +30,7 @@ hf download nvidia/GR00T-N1.7-LIBERO \
   --local-dir policy/GR00T_N17/checkpoints
 ```
 
-Cosmos-Reason2-2B access and runtime dependencies are required. Its identifier in `deploy.yml` must also match the dependency in the checkpoint's `config.json`; private offline copies can contain machine-specific paths and need preparation before loading.
+Cosmos-Reason2-2B access and runtime dependencies are required. Its identifier in `deploy.yml` must also match the dependency in the checkpoint's `config.json`; private offline copies can contain machine-specific paths and need preparation before loading. GR00T only accepts a backbone whose name contains `nvidia/Cosmos-Reason2`, so keep that in the path of a local copy (for example `/weights/nvidia/Cosmos-Reason2-2B`) and point both `cosmos_model_path` and the checkpoint's `config.json` `model_name` at it.
 
 Native observations follow the checkpoint's `video`, `state`, and `language` schema. The returned chunk preserves native action names and units; the evaluator performs controller conversion. `io_format: arx_x5` retains the existing bimanual adapter and requires a matching ARX X5 checkpoint and environment configuration. It must not be used with the LIBERO checkpoint.
 
