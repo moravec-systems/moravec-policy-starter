@@ -15,6 +15,9 @@ secrets: []
 interface:
   robot: arx_x5
   action_type: ee
-  cameras: [cam_head, cam_left_wrist, cam_right_wrist]
+  cameras:
+    cam_head: [480, 640, 3]
+    cam_left_wrist: [480, 640, 3]
+    cam_right_wrist: [480, 640, 3]
   chunk_steps: 32
   batching: false

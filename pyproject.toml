@@ -14,7 +14,11 @@ dependencies = [
     "msgpack>=1.0.8",
     "msgpack-numpy>=0.4.8",
     "pydantic>=2.5",
+    "jsonschema>=4.18",
 ]
+
+[project.scripts]
+moravec-validate = "moravec_policy.validate:main"
 
 [tool.setuptools]
 include-package-data = false
@@ -34,5 +38,6 @@ packages = [
 ]
 
 [tool.setuptools.package-data]
+"moravec_policy" = ["schemas/*.json"]
 "moravec_policy.utils" = ["robot/*.json"]
 "*" = ["deploy.yml", "README.md"]

@@ -43,8 +43,8 @@ A CPU-only image of the same policy server. From the repository root:
 docker build -f policy/GPT_6_Astra_Direct_EEF/Dockerfile -t moravec-astra:demo .
 # OPENAI_API_KEY must already be exported in your shell; it is passed at runtime only.
 docker run -d --rm --name moravec-astra -p 127.0.0.1:6000:6000 -e OPENAI_API_KEY moravec-astra:demo
-docker exec moravec-astra python policy/GPT_6_Astra_Direct_EEF/check_client.py
+moravec-validate policy/GPT_6_Astra_Direct_EEF --url ws://127.0.0.1:6000
 docker stop moravec-astra
 ```
 
-The check sends one synthetic scene (a red block on a grey table) through the shared protocol, which makes one paid `gpt-6-astra` request, and validates the returned end-effector chunk. It executes no actions and does not establish task success. Override `embodiment_notes` and the geometry settings for your evaluator by mounting a deployment YAML and overriding the default command with `python setup_policy_server.py --config_path /config/deploy.yml --host 0.0.0.0`.
+The validator sends synthetic camera images and end-effector state through the shared protocol, which makes a few paid `gpt-6-astra` requests, and checks the returned end-effector chunks, batching, and reset. It executes no actions and does not establish task success. Override `embodiment_notes` and the geometry settings for your evaluator by mounting a deployment YAML and overriding the default command with `python setup_policy_server.py --config_path /config/deploy.yml --host 0.0.0.0`.

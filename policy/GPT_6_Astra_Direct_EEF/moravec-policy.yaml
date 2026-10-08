@@ -14,6 +14,9 @@ secrets: [OPENAI_API_KEY]            # the policy calls the OpenAI API at run ti
 interface:
   robot: arx_x5
   action_type: ee
-  cameras: [cam_head, cam_left_wrist, cam_right_wrist]   # any RGB cameras are passed to the model
+  cameras:                           # any RGB cameras are passed to the model
+    cam_head: [480, 640, 3]
+    cam_left_wrist: [480, 640, 3]
+    cam_right_wrist: [480, 640, 3]
   chunk_steps: variable              # one interpolated move per call
   batching: true

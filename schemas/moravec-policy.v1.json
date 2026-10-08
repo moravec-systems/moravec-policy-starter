@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://moravec.ai/schemas/moravec-policy.v1.json",
+  "title": "Moravec policy submission manifest",
+  "description": "Describes a policy container: how to start it and the observation/action interface it serves. Never contains credentials.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "name", "version", "image", "serve", "resources", "interface"],
+  "properties": {
+    "schema": {"const": "moravec.policy/v1"},
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,62}$",
+      "description": "Your name for the policy: lowercase letters, digits, '.', '_' or '-'."
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Your version or checkpoint label."
+    },
+    "image": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Container image. Submissions must pin it by digest: registry/repository@sha256:<64 hex>."
+    },
+    "checkpoint": {
+      "type": ["string", "null"],
+      "description": "Path of the weights inside the image, or null for policies without weights."
+    },
+    "serve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "port", "startup_timeout_s"],
+      "properties": {
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string"},
+          "description": "Command that starts the policy server, as an argument list."
+        },
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "startup_timeout_s": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600,
+          "description": "Seconds allowed to load the model and open the port."
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gpu_count"],
+      "properties": {
+        "gpu_count": {"type": "integer", "minimum": 0, "maximum": 8},
+        "min_gpu_memory_gb": {"type": "number", "minimum": 0},
+        "shm_size_gb": {"type": "number", "minimum": 0}
+      }
+    },
+    "secrets": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$"},
+      "description": "Names (never values) of environment variables the policy needs at run time."
+    },
+    "interface": {
+      "oneOf": [{"$ref": "#/$defs/standard_interface"}, {"$ref": "#/$defs/native_interface"}]
+    }
+  },
+  "$defs": {
+    "image_shape": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "integer", "minimum": 1},
+        {"type": "integer", "minimum": 1},
+        {"const": 3}
+      ],
+      "items": false,
+      "minItems": 3,
+      "description": "Height, width and channels of an RGB uint8 image."
+    },
+    "standard_interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["robot", "action_type", "cameras", "chunk_steps", "batching"],
+      "properties": {
+        "robot": {
+          "type": "string",
+          "description": "A robot key in utils/robot/_robot_info.json, which fixes the arm and gripper dimensions."
+        },
+        "action_type": {
+          "enum": ["joint", "ee"],
+          "description": "joint: {side}_arm_joint_state; ee: {side}_ee_pose as [x, y, z, qw, qx, qy, qz]. Both add {side}_ee_joint_state (gripper, 0 closed to 1 open)."
+        },
+        "cameras": {
+          "type": "object",
+          "propertyNames": {"pattern": "^[A-Za-z0-9_]+$"},
+          "additionalProperties": {"$ref": "#/$defs/image_shape"},
+          "description": "Camera names the policy reads under obs['vision'], with their image shapes."
+        },
+        "chunk_steps": {
+          "oneOf": [{"type": "integer", "minimum": 1}, {"const": "variable"}],
+          "description": "Actions returned per get_action call."
+        },
+        "batching": {
+          "type": "boolean",
+          "description": "Whether update_obs_batch and get_action_batch are supported."
+        },
+        "instruction": {
+          "type": "string",
+          "description": "Example task instruction used when testing the policy."
+        }
+      }
+    },
+    "native_interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "notes", "check", "batching"],
+      "properties": {
+        "format": {"const": "native"},
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The policy's own observation and action keys, units and chunk length."
+        },
+        "check": {
+          "type": "string",
+          "description": "Script, relative to the manifest, that tests a running server: it is called with --url and must exit 0 on success."
+        },
+        "batching": {"type": "boolean"}
+      }
+    }
+  }
+}

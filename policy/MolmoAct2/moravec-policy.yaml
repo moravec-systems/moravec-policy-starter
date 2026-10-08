@@ -15,6 +15,9 @@ secrets: []
 interface:
   robot: yam
   action_type: joint
-  cameras: [top, left, right]
+  cameras:
+    top: [480, 640, 3]
+    left: [480, 640, 3]
+    right: [480, 640, 3]
   chunk_steps: 30
   batching: false

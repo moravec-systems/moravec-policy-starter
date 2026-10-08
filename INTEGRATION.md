@@ -38,7 +38,15 @@ interface:
 | `secrets` | Names (never values) of environment variables the policy needs at run time, such as an API key. |
 | `interface` | The observation and action format described below: robot, `joint` or `ee` actions, camera names, chunk length, and batching support. A policy with its own native format (like the GR00T example) sets `format: native` and describes its keys in `notes`. |
 
-Before submitting, start your container and run your own version of the example `check_client.py`: it sends one synthetic observation, checks the returned action chunk, and resets the policy without executing anything. Moravec runs the same checks before any evaluation, then connects its evaluator to the policy over a private network.
+Before submitting, validate the policy with `moravec-validate`, installed by `pip install -e .`:
+
+```sh
+moravec-validate policy/my_policy                                # manifest and files only
+moravec-validate policy/my_policy --run --image my-policy:local  # start the image with Docker and test it
+moravec-validate policy/my_policy --url ws://127.0.0.1:6000      # or test a server you already started
+```
+
+It checks the manifest against [`schemas/moravec-policy.v1.json`](schemas/moravec-policy.v1.json), looks for credentials in the policy folder, then starts the policy (with `--run`) and tests the contract: readiness, reset, and synthetic observations built from `interface`, checking the returned actions' count, keys, shapes, finite values, gripper range, unit quaternions, batching and latency. Nothing is executed on a robot. Add `--submit` to require a digest-pinned image, `--docker-arg` to pass mounts or other `docker run` options, and `--json` for a machine-readable report in which every failure carries a stable `code` and a `fix`. Moravec runs the same checks before any evaluation, then connects its evaluator to the policy over a private network.
 
 ## Interface
 

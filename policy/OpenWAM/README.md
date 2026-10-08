@@ -45,10 +45,10 @@ docker run --rm --gpus all --shm-size=2g \
 
 The image installs OpenWAM at the pinned commit above; weights stay outside the image. Download the checkpoint above before starting it, including its configuration and normalization files. If a configured backbone requires authenticated downloads, inject `HF_TOKEN` with `--env HF_TOKEN` from your host environment. Never include credentials in the image or submission files.
 
-In another terminal, send a synthetic three-camera observation and verify the returned action chunk:
+In another terminal, with the starter installed (`pip install -e .`), send synthetic three-camera observations and verify the returned action chunks:
 
 ```sh
-docker exec moravec-openwam python policy/OpenWAM/check_client.py
+moravec-validate policy/OpenWAM --url ws://127.0.0.1:6000
 ```
 
-The check executes no actions. Container health means the server has initialized and accepts WebSocket connections; it does not establish task success. Use simulation observations and controllers for task evaluation. The container preserves this checkpoint's ARX X5 coordinate transforms and gripper conventions; it is not a YAM or FR3 deployment. The foundation pretraining checkpoint has a different action representation and cannot replace this simulation checkpoint directly.
+The validator executes no actions. Container health means the server has initialized and accepts WebSocket connections; it does not establish task success. Use simulation observations and controllers for task evaluation. The container preserves this checkpoint's ARX X5 coordinate transforms and gripper conventions; it is not a YAM or FR3 deployment. The foundation pretraining checkpoint has a different action representation and cannot replace this simulation checkpoint directly.
