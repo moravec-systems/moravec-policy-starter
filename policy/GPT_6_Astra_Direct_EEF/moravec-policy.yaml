@@ -1,0 +1,19 @@
+# Sample submission manifest: see INTEGRATION.md#submitting-a-policy.
+schema: moravec.policy/v1
+name: gpt-6-astra-agent
+version: "1.0.0"
+image: registry.example.com/team/astra-agent@sha256:<digest>
+checkpoint: null                     # hosted model; no weights in the image
+serve:
+  command: [python, setup_policy_server.py, --config_path, policy/GPT_6_Astra_Direct_EEF/deploy.yml, --host, 0.0.0.0]
+  port: 6000
+  startup_timeout_s: 60
+resources:
+  gpu_count: 0
+secrets: [OPENAI_API_KEY]            # the policy calls the OpenAI API at run time
+interface:
+  robot: arx_x5
+  action_type: ee
+  cameras: [cam_head, cam_left_wrist, cam_right_wrist]   # any RGB cameras are passed to the model
+  chunk_steps: variable              # one interpolated move per call
+  batching: true

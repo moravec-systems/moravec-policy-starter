@@ -1,0 +1,12 @@
+policy_name: MolmoAct2
+protocol: ws
+host: 127.0.0.1
+port: 6000
+env_cfg_type: yam
+action_type: joint
+eval_batch: false
+model_path: checkpoints/BimanualYAM
+device: cuda
+dtype: bfloat16
+num_steps: 10
+actions_per_chunk: 30

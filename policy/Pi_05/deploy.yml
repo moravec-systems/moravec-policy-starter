@@ -1,0 +1,13 @@
+# Research checkpoint for the ARX X5 simulation fixture; see README for provenance.
+policy_name: Pi_05
+protocol: ws
+host: 127.0.0.1
+port: 6000
+env_cfg_type: arx_x5
+task_name: stack_bowls
+action_type: joint
+eval_batch: false
+model_path: checkpoints/sim-10task/14077
+# Normalization stats under <model_path>/assets/<asset_id>.
+asset_id: arx_x5_sim
+adapt_to_pi: false

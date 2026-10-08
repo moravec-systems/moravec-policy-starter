@@ -1,0 +1,21 @@
+# Sample submission manifest: see INTEGRATION.md#submitting-a-policy.
+schema: moravec.policy/v1
+name: gr00t-n17-libero
+version: "libero_spatial"
+image: registry.example.com/team/gr00t-n17@sha256:<digest>
+checkpoint: /app/policy/GR00T_N17/checkpoints/libero_spatial
+serve:
+  command: [python, setup_policy_server.py, --config_path, policy/GR00T_N17/deploy.yml, --host, 0.0.0.0]
+  port: 6000
+  startup_timeout_s: 900
+resources:
+  gpu_count: 1
+  min_gpu_memory_gb: 48              # checked on a 48 GB GPU; the model may need less
+secrets: [HF_TOKEN]                  # only if the image downloads the gated Cosmos-Reason2-2B backbone at startup
+interface:
+  format: native
+  notes: >-
+    LIBERO checkpoint schema. Observations: video.image and video.wrist_image (256x256 RGB),
+    state x, y, z, roll, pitch, yaw and gripper (2), language
+    annotation.human.action.task_description. Actions: 16 steps of x, y, z, roll, pitch, yaw, gripper.
+  batching: false

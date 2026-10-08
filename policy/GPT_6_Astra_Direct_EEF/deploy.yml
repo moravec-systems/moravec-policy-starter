@@ -1,0 +1,78 @@
+# Defaults reproduce the RoboProbe agent on the ARX X5 simulation embodiment.
+policy_name: GPT_6_Astra_Direct_EEF
+protocol: ws
+host: 127.0.0.1
+port: 6000
+action_type: ee
+eval_batch: false
+model: gpt-6-astra
+reasoning_effort: medium
+max_llm_calls: 100
+# Reported ee_pose is the ARX link6 flange; the grasp point is 0.1501 m along the tool axis.
+down_quat_wxyz: [0.5, -0.5, 0.5, 0.5]
+grasp_offset_m: 0.1501
+# Motion speed and limits used to turn each target into an action chunk.
+control_hz: 30
+max_step_m: 0.01
+max_step_deg: 3.0
+max_duration_s: 10.0
+gripper_dwell_steps: 15
+bounds:
+  left_x: [-1.1, 0.5]
+  left_y: [-1.25, 0.35]
+  left_z: [0.7, 1.565]
+  right_x: [-0.5, 1.1]
+  right_y: [-1.25, 0.35]
+  right_z: [0.7, 1.565]
+embodiment_notes: |
+  Two identical 6-DoF ARX X5 arms, prefixed left_ and right_, each with a
+  parallel-jaw gripper. World frame: +z is up, both bases face world +y (left base at
+  (-0.300, -0.450, 0.765), right base at (0.300, -0.450, 0.765)), and +x is the lateral axis with the left arm on the -x
+  side. The table surface is at z = 0.765, and each grasp point reaches about
+  0.80 m from its own base.
+  Every position, commanded and reported, is the point between the jaws where an
+  object is held. To grasp something resting on the table, name that object's
+  own position: no tool offset is yours to add.
+  The jaws are 15 mm deep along the tool axis and the commanded point is their
+  centre, so a straight-down grasp reaches no lower than z = 0.7725 before the
+  table stops it. Anything flat lying on the table, such as a tile, a card or a
+  token, is therefore grasped at a grasp-point z of about 0.7725 rather than at
+  an estimated centre height: naming a lower z is safe and lands in the same
+  place, while a z above 0.78 closes the jaws entirely above such an object.
+  Objects tall enough to stand above the table are grasped at their own height
+  as usual.
+  Gripper 0 is fully closed, 1 is fully open, and commanding 0 always closes as
+  far as the object allows.
+  Each wrist camera rides its own arm, so which views you have is itself
+  something you can command. When the head camera is blocked, or the working
+  arm's own wrist sits too close to show what it is doing, move the idle arm
+  until its wrist looks at the work: a motion that only buys a view is worth its
+  env steps when the alternative is aiming blind.
+  On anything that is not a simple block, where you take hold of it decides how
+  hard the rest of the task is. Choose the grasp that leaves the part you still
+  have to insert, pour from, hang or set down clear of the jaws and pointing the
+  way it will need to go, rather than whichever face is easiest to close on.
+  Scale every motion to how close it is to touching something. Full-size moves
+  belong in free space; once the jaws are within about a centimetre of the
+  object, the table, or wherever a held object is going down, keep corrections
+  to a few millimetres per call and re-read the cameras between them. A carried
+  object extends the hand, so measure that centimetre from the edges of whatever
+  is held, not from the jaws.
+  When a task is built from several placements, the order they are done in is
+  part of the task rather than a detail. Work out which piece has to be in place
+  before which, and do first whatever the rest will stand on, reach over, or
+  need the room beside.
+  Most of these tasks also score the arms themselves: the work does not score
+  until both arms are back within 0.15 m and 20 degrees of the pose they began
+  the episode in, with the objects left as the task asked. Getting home is the
+  last step of the task rather than tidying up afterwards, so keep enough env
+  steps in hand to make it.
+  The advertised per-dimension bounds only reject gross magnitude errors: a pose
+  inside them can still be refused as unreachable by the Cartesian planner, and
+  that refusal spends a turn and gains no env steps, so keep targets near the
+  current grasp point. A refusal is likelier the more one call asks for, so
+  travel to the new position first and turn the tool in a later call rather than
+  doing both at once. Large rotations are more reliable in two or three steps
+  than in one. Both arms named in one call are planned as a unit and refused as
+  one: a pose the planner will not take for either arm leaves the other standing
+  still as well, so move one arm at a time whenever either target is uncertain.

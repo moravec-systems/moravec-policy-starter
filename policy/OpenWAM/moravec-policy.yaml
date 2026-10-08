@@ -1,0 +1,20 @@
+# Sample submission manifest: see INTEGRATION.md#submitting-a-policy.
+schema: moravec.policy/v1
+name: openwam-arx-x5
+version: "alpha-sim"
+image: registry.example.com/team/openwam@sha256:<digest>
+checkpoint: /weights/openwam-sim
+serve:
+  command: [python, setup_policy_server.py, --config_path, policy/OpenWAM/deploy.yml, --overrides, host=0.0.0.0, ckpt_dir=/weights/openwam-sim]
+  port: 6000
+  startup_timeout_s: 900
+resources:
+  gpu_count: 1
+  min_gpu_memory_gb: 48              # checked on a 48 GB GPU; the model may need less
+secrets: []
+interface:
+  robot: arx_x5
+  action_type: ee
+  cameras: [cam_head, cam_left_wrist, cam_right_wrist]
+  chunk_steps: 32
+  batching: false

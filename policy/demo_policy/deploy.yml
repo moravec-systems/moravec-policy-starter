@@ -1,0 +1,8 @@
+policy_name: demo_policy
+protocol: ws
+host: 127.0.0.1
+port: 6000
+# A robot in utils/robot/_robot_info.json, and joint or ee actions.
+env_cfg_type: yam
+action_type: joint
+eval_batch: false

@@ -1,0 +1,28 @@
+# Allowlist: no weights, credentials, local environments, or run artifacts.
+**
+!pyproject.toml
+!LICENSE
+!THIRD_PARTY.md
+!README.md
+!model_template.py
+!setup_policy_server.py
+!client_server/
+!client_server/**
+!utils/
+!utils/**
+!policy/__init__.py
+!policy/*/*.py
+!policy/*/deploy.yml
+!policy/*/README.md
+!policy/GR00T_N17/*.py
+!policy/GR00T_N17/deploy.yml
+!policy/GR00T_N17/README.md
+**/__pycache__/**
+**/*.pyc
+!policy/GR00T_N17/requirements.lock
+!policy/GR00T_N17/Dockerfile
+!policy/demo_policy/Dockerfile
+
+# Per-policy container recipes and pinned runtime dependencies.
+!policy/*/Dockerfile
+!policy/*/requirements.lock

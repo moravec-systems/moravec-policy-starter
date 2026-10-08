@@ -1,0 +1,20 @@
+# Sample submission manifest: see INTEGRATION.md#submitting-a-policy.
+schema: moravec.policy/v1
+name: pi05-arx-x5
+version: "sim-10task-14077"
+image: registry.example.com/team/pi05@sha256:<digest>
+checkpoint: /app/policy/Pi_05/checkpoints/sim-10task/14077
+serve:
+  command: [python, setup_policy_server.py, --config_path, policy/Pi_05/deploy.yml, --host, 0.0.0.0]
+  port: 6000
+  startup_timeout_s: 900
+resources:
+  gpu_count: 1
+  min_gpu_memory_gb: 48              # checked on a 48 GB GPU; the model may need less
+secrets: []
+interface:
+  robot: arx_x5
+  action_type: joint
+  cameras: [cam_high, cam_left_wrist, cam_right_wrist]
+  chunk_steps: 50
+  batching: false

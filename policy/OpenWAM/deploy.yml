@@ -1,0 +1,10 @@
+policy_name: OpenWAM
+protocol: ws
+host: 127.0.0.1
+port: 6000
+env_cfg_type: arx_x5
+action_type: ee
+eval_batch: false
+ckpt_dir: checkpoints/openwam-sim
+device: cuda
+allow_dummy_policy: false

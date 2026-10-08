@@ -1,0 +1,9 @@
+# Released NVIDIA LIBERO spatial checkpoint; simulation test fixture, not YAM.
+policy_name: GR00T_N17
+protocol: ws
+host: 127.0.0.1
+port: 6000
+embodiment_tag: libero_sim
+model_dir: checkpoints/libero_spatial
+cosmos_model_path: nvidia/Cosmos-Reason2-2B
+device: cuda

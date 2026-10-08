@@ -1,0 +1,41 @@
+**/__pycache__/**
+**/*.egg-info/
+.cursor/
+.claude/
+.agents/
+**/.venv/**
+**/checkpoints/**
+train_out/
+checkpoints/
+runs/
+Log/
+logs/
+
+# Local Moravec credentials and evaluation artifacts
+.env
+.env.*
+!.env.example
+weights/
+results/
+evidence/
+validation/
+external/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+MUJOCO_LOG.TXT
+*.mp4
+
+.venv*/
+
+# Local editor settings
+**/.vscode/
+
+# Pinned model sources cloned during setup
+/policy/Pi_05/openpi/
+/policy/OpenWAM/OpenWAM/
+
+# Local package build output
+/build/
+/dist/
+/examples/yam_mujoco/i2rt/

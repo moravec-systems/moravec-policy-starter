@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "moravec-policy-starter"
+version = "0.0.1"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.23",
+    "pyyaml>=6",
+    "opencv-python-headless>=4.8",
+    "websockets>=14.0",
+    "msgpack>=1.0.8",
+    "msgpack-numpy>=0.4.8",
+    "pydantic>=2.5",
+]
+
+[tool.setuptools]
+include-package-data = false
+package-dir = { "moravec_policy" = "." }
+packages = [
+    "moravec_policy",
+    "moravec_policy.policy",
+    "moravec_policy.policy.demo_policy",
+    "moravec_policy.policy.GPT_6_Astra_Direct_EEF",
+    "moravec_policy.policy.GR00T_N17",
+    "moravec_policy.policy.Pi_05",
+    "moravec_policy.policy.OpenWAM",
+    "moravec_policy.policy.MolmoAct2",
+    "moravec_policy.utils",
+    "client_server",
+    "client_server.protocol",
+]
+
+[tool.setuptools.package-data]
+"moravec_policy.utils" = ["robot/*.json"]
+"*" = ["deploy.yml", "README.md"]
