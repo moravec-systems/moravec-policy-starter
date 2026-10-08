@@ -45,16 +45,8 @@ The simulation runs on CPU, so it can run on a laptop while the policy runs on a
 - With `--action-type ee`, state and actions use `{left,right}_ee_pose` instead of joint angles: the fingertip centre (i2rt's `tcp_left`/`tcp_right` sites) as `[x, y, z, qw, qx, qy, qz]` in the world frame (+z up, table at z = 0, left arm base at the origin, right arm base at y = -0.61). Targets are converted to joints with damped least-squares IK (a few millimetres of error in the central workspace). Episodes start from a ready pose with both grippers open, pointing down, 20 cm above the table.
 - Episode ends after `--chunks` policy calls or when the block rests on the plate (`success: true`).
 
-## What to expect
+## Notes
 
 The scene uses grasp-friendly contact settings (elliptic friction cone, `impratio` 10, no-slip iterations, stiffer contacts, higher fingertip friction, 80 N grip force). A scripted pick-and-place succeeds with up to 1 cm of misalignment; beyond about 1.5 cm across the finger pads the block slips, as on a real parallel gripper.
 
-Earlier results, measured before those contact settings were added (when even a perfectly centred grasp slipped):
-
-- MolmoAct2-BimanualYAM (30-step chunks, about 0.4 s per call on an L40S), two 45-second episodes: the left arm reached the block and repeatedly attempted grasps, once lifting it about 1.6 cm.
-
-With the current settings:
-
-- Astra (`gpt-6-astra`, RoboProbe-style agent, medium reasoning, about 6 s per call, block position not given) aligns the jaws with the block by turning yaw, descends in millimetre steps, checks that the block follows before lifting, and retries after a slip. Across two 40-call episodes and one logged 25-call run it never placed the block: each grasp closed about 1.6 cm off centre while its notes reported the block centred, because the wrist camera sits beside the jaws rather than between them. A small lift (about 1.4 cm) slipped out every time. The same agent and settings stack blocks and bowls in RoboDojo's Isaac Sim ARX X5 tasks (see the [Astra README](../../policy/GPT_6_Astra_Direct_EEF/README.md#results)), so the gap here comes mainly from this uncalibrated scene and its untested YAM embodiment notes rather than the agent.
-
-The checkpoints and agents were not tuned for this uncalibrated scene (textures, lighting, camera intrinsics, start pose, and an assumed 30 Hz control rate), so treat task success here as a smoke signal only.
+The scene is not calibrated to any real setup (textures, lighting, camera intrinsics, start pose, and an assumed 30 Hz control rate), so treat task success here as a smoke signal only.

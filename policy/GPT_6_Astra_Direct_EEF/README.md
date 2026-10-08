@@ -25,17 +25,6 @@ Malformed calls get up to three repair prompts. The conversation continues acros
 
 [`examples/yam_mujoco/astra_yam.yml`](../../examples/yam_mujoco/astra_yam.yml) configures it for the YAM MuJoCo scene.
 
-## Results
-
-In RoboDojo's Isaac Sim ARX X5 tasks (seed 0, two layouts per task, 40-call budget, 25 Hz, default `deploy.yml`), compared with the original RoboProbe agent under the same settings:
-
-| Task | Original agent | This agent |
-| --- | --- | --- |
-| `stack_blocks` | 1 of 2 (score 50) | 2 of 2 (score 100) |
-| `stack_bowls` | 0 of 2 (score 7.5) | 1 of 2 (score 57.5) |
-
-The original planned each move with RoboDojo's collision-aware Cartesian planner; this agent sends straight-line end-effector targets that RoboDojo converts with per-step IK. Two layouts per task is a small sample and model output varies between runs.
-
 ## Setup
 
 ```sh
