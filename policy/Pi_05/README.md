@@ -54,15 +54,15 @@ docker run -d --name pi05 --gpus all --shm-size=2g \
 docker logs -f pi05
 ```
 
-After the server is listening, run the inference check in another terminal:
+After the server is listening, validate it from another terminal (with `pip install -e .`):
 
 ```sh
-docker exec pi05 python policy/Pi_05/check_client.py
+moravec-validate policy/Pi_05 --url ws://127.0.0.1:6000
 docker stop pi05
 ```
 
-The check sends three synthetic RGB images, a 14-element joint/gripper state, and an instruction. It expects 50 steps containing both six-joint arms and their grippers. This checks the real checkpoint's inference and wire format; task performance requires simulation with real observations. The first inference includes JAX compilation and can take several minutes.
+The validator sends three synthetic RGB images, the joint/gripper state, and an instruction, as declared in `moravec-policy.yaml`, and expects 50 steps containing both six-joint arms and their grippers. This checks the real checkpoint's inference and wire format; task performance requires simulation with real observations. The first inference includes JAX compilation and can take several minutes.
 
-The included robot dimensions and check client target the ARX X5 research fixture above. They do not qualify YAM or arbitrary checkpoints. For another checkpoint, mount a deployment YAML and its weights, then override the default command with `python setup_policy_server.py --config_path /config/deploy.yml --host 0.0.0.0`. Its `asset_id`, `adapt_to_pi`, normalization assets, cameras, and action convention must agree.
+The included manifest and robot dimensions target the ARX X5 research fixture above. They do not qualify YAM or arbitrary checkpoints. For another checkpoint, mount a deployment YAML and its weights, then override the default command with `python setup_policy_server.py --config_path /config/deploy.yml --host 0.0.0.0`. Its `asset_id`, `adapt_to_pi`, normalization assets, cameras, and action convention must agree.
 
 On first startup OpenPI downloads its tokenizer into `/cache/openpi`; this example requires network access unless that cache is already populated. Download restricted weights separately using your authenticated host environment. Do not bake tokens or checkpoints into the image.

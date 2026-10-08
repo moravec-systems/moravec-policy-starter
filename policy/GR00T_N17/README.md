@@ -85,13 +85,14 @@ Use `docker logs moravec-gr00t` to inspect startup and
 `docker inspect --format '{{.State.Health.Status}}' moravec-gr00t` for readiness. Host port exposure is loopback-only; remote
 connections use the SSH tunnel in the integration guide.
 
-From a second terminal with the starter installed, request an action:
+From a second terminal with the starter installed (`pip install -e .`), validate it:
 
 ```sh
-python policy/GR00T_N17/check_client.py
+moravec-validate policy/GR00T_N17 --url ws://127.0.0.1:6000
 ```
 
-This sends synthetic camera/state input to the actual loaded model and checks
-its returned action chunk. It never executes actions. For simulation evaluation,
+This checks the manifest, then runs the policy's native check (`check_client.py`,
+named in `moravec-policy.yaml`), which sends synthetic camera/state input in the
+checkpoint's own format to the loaded model and checks its returned action chunk. It never executes actions. For simulation evaluation,
 the separate evaluator must supply real scene observations and controllers.
 Stop the server with `docker stop moravec-gr00t`; the named volumes retain weights.

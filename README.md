@@ -7,9 +7,10 @@ Serve your robot policy to Moravec's evaluator. Each example wraps one model beh
 ```sh
 python -m pip install -e .
 python scripts/demo_roundtrip.py
+moravec-validate policy/demo_policy
 ```
 
-The demo starts a local policy server, sends synthetic camera images and joint state, and checks action shapes, batching, and reset for every registered robot in joint and end-effector modes. It runs no learned model. Its zero actions can command motion under absolute control, so never send them to hardware.
+The demo starts a local policy server, sends synthetic camera images and joint state, and checks action shapes, batching, and reset for every registered robot in joint and end-effector modes. It runs no learned model. Its zero actions can command motion under absolute control, so never send them to hardware. `moravec-validate` checks a policy's [submission manifest](INTEGRATION.md#submitting-a-policy) and, with `--run` or `--url`, tests the running policy against it.
 
 ## Interface
 
@@ -26,7 +27,7 @@ A policy is a `policy/<name>/model.py` exposing `Model(deploy_cfg)` with `reset(
 | [MolmoAct2](policy/MolmoAct2) | Ai2 MolmoAct2-BimanualYAM VLA | GPU |
 | [GPT_6_Astra_Direct_EEF](policy/GPT_6_Astra_Direct_EEF) | LLM agent choosing end-effector goals via the OpenAI API | CPU |
 
-Each README covers setup, weights, the container, and a `check_client.py` that requests real inference without executing actions. Model code is installed from its original repository at a pinned commit (or, for MolmoAct2, its pinned Hugging Face snapshot); weights are downloaded separately and never stored in Git or images.
+Each README covers setup, weights, the container, and validating the running container with `moravec-validate`, which requests real inference without executing actions. Model code is installed from its original repository at a pinned commit (or, for MolmoAct2, its pinned Hugging Face snapshot); weights are downloaded separately and never stored in Git or images.
 
 To run a YAM policy closed loop before real evaluation, use the [YAM MuJoCo check](examples/yam_mujoco/README.md): a bimanual YAM tabletop scene with top and wrist cameras for joint or end-effector policy servers.
 

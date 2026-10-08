@@ -14,6 +14,6 @@ secrets: []
 interface:
   robot: yam
   action_type: joint
-  cameras: []                        # ignores observation content
+  cameras: {}                        # ignores observation content
   chunk_steps: 2
   batching: true

@@ -18,4 +18,5 @@ interface:
     LIBERO checkpoint schema. Observations: video.image and video.wrist_image (256x256 RGB),
     state x, y, z, roll, pitch, yaw and gripper (2), language
     annotation.human.action.task_description. Actions: 16 steps of x, y, z, roll, pitch, yaw, gripper.
+  check: check_client.py               # tests a running server; called with --url
   batching: false

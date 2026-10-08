@@ -82,16 +82,16 @@ docker run --rm --name moravec-molmoact2 --gpus all --shm-size=2g \
 
 Inspect initialization with `docker logs moravec-molmoact2`. A healthy container
 means its WebSocket is listening after model loading. From another terminal,
-request an action using the image's client:
+with the starter installed (`pip install -e .`), validate the running policy:
 
 ```sh
-docker exec moravec-molmoact2 python policy/MolmoAct2/check_client.py
+moravec-validate policy/MolmoAct2 --url ws://127.0.0.1:6000
 ```
 
-The check sends three synthetic RGB images and a 14-D joint state through the
-shared protocol to the loaded checkpoint, then validates its 30-step action
-chunk. It does not execute actions or establish task performance. Use
-`--expected-steps N` if serving with a different `actions_per_chunk`. Real
+The validator sends three synthetic RGB images and the 14-D joint state described
+in `moravec-policy.yaml` to the loaded checkpoint, then checks its 30-step action
+chunks and reset. It does not execute actions or establish task performance. If
+you serve a different `actions_per_chunk`, change `chunk_steps` in the manifest. Real
 simulation requires a separately calibrated YAM evaluator; this image supplies
 the policy server only. Stop it with `docker stop moravec-molmoact2`.
 

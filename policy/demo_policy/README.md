@@ -23,11 +23,12 @@ From the repository root:
 docker build -f policy/demo_policy/Dockerfile -t moravec-demo-policy:demo .
 docker run --rm -d --name moravec-demo-policy \
   -p 127.0.0.1:6000:6000 moravec-demo-policy:demo
-docker exec moravec-demo-policy python policy/demo_policy/check_client.py
+moravec-validate policy/demo_policy --url ws://127.0.0.1:6000
 docker stop moravec-demo-policy
 ```
 
-The client sends an observation, checks two synthetic action steps, and resets
-the policy. No actions are executed. Port 6000 must be available. For a client
+`moravec-validate` (installed with `pip install -e .`) checks the manifest, then sends
+synthetic observations and checks the two returned action steps, batching, and reset.
+No actions are executed. Port 6000 must be available. For a validator
 on another machine, use the SSH tunnel in the integration guide. This is a
 transport example, not a learned policy or a physical robot controller.
