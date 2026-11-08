@@ -61,7 +61,7 @@ def _get_state_keys(action_type: str, num_arms: int, source_type: str):
 
     source_type='obs' uses singular keys:
         single-arm:
-            action_type='joint' -> ['joint_state'], ['ee_joint_state']
+            action_type='joint' -> ['arm_joint_state'], ['ee_joint_state']
             action_type='ee'    -> ['ee_pose'], ['ee_joint_state']
         dual-arm:
             action_type='joint' -> ['left_arm_joint_state', 'right_arm_joint_state'],
@@ -71,7 +71,7 @@ def _get_state_keys(action_type: str, num_arms: int, source_type: str):
 
     source_type='dataset' uses plural keys:
         single-arm:
-            action_type='joint' -> ['joint_states'], ['ee_joint_states']
+            action_type='joint' -> ['arm_joint_states'], ['ee_joint_states']
             action_type='ee'    -> ['ee_poses'], ['ee_joint_states']
         dual-arm:
             action_type='joint' -> ['left_arm_joint_states', 'right_arm_joint_states'],
@@ -82,7 +82,7 @@ def _get_state_keys(action_type: str, num_arms: int, source_type: str):
     suffix = "" if source_type == "obs" else "s"
 
     if num_arms == 1:
-        arm_keys = [f"joint_state{suffix}"] if action_type == "joint" else [f"ee_pose{suffix}"]
+        arm_keys = [f"arm_joint_state{suffix}"] if action_type == "joint" else [f"ee_pose{suffix}"]
         ee_keys = [f"ee_joint_state{suffix}"]
     else:
         if action_type == "joint":

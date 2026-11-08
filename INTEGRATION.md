@@ -59,7 +59,7 @@ Each `policy/<name>/model.py` exposes `Model(model_cfg)` with:
 
 Observations carry an instruction, named cameras under `vision`, and robot state under `state`. The demo roundtrip shows three RGB cameras and joint state. That is an example, not a universal model requirement: use the selected policy's documented camera and state mapping. Images are decoded at the server boundary by the existing image utilities. GR00T instead takes its checkpoint's native `video`, `state`, and `language` dictionaries; see its example for the LIBERO mapping.
 
-For our bimanual joint examples, actions use `left_arm_joint_state`, `right_arm_joint_state`, `left_ee_joint_state`, and `right_ee_joint_state`. End-effector examples replace arm joint arrays with `left_ee_pose` and `right_ee_pose`; the demo uses `[x, y, z, qw, qx, qy, qz]`. Coordinate frames and absolute/delta interpretation must agree with the checkpoint and evaluator. The evaluator executes action chunks and supplies subsequent observations.
+For our bimanual joint examples, actions use `left_arm_joint_state`, `right_arm_joint_state`, `left_ee_joint_state`, and `right_ee_joint_state`. End-effector examples replace arm joint arrays with `left_ee_pose` and `right_ee_pose`; the demo uses `[x, y, z, qw, qx, qy, qz]`. A one-arm robot such as `droid` uses the same keys without the prefix: `arm_joint_state` or `ee_pose`, plus `ee_joint_state`. Grippers (`ee_joint_state`) run from 0 closed to 1 open. Moravec's DROID stations report `ee_pose` as the `panda_hand` frame (where the Robotiq gripper mounts) in the arm's base frame; the point between the fingertips is 0.1628 m further along its z axis. Coordinate frames and absolute/delta interpretation must agree with the checkpoint and evaluator. The evaluator executes action chunks and supplies subsequent observations.
 
 ## Configuration
 
@@ -102,7 +102,7 @@ The checkpoint and evaluator configuration must already exist; this command does
 python scripts/demo_roundtrip.py
 ```
 
-This creates a temporary evaluator layout and local WebSocket server. Six cases check joint/end-effector action shapes, observation transport, batching, and reset for the registered robot dimensions. It uses synthetic images and the zero-action demo; it neither runs model inference nor establishes simulation or physical task success. Never send the demo's zero actions to physical hardware.
+This creates a temporary evaluator layout and local WebSocket server. Two cases per registered robot (joint and end-effector) check action shapes, observation transport, batching, and reset for the registered robot dimensions. It uses synthetic images and the zero-action demo; it neither runs model inference nor establishes simulation or physical task success. Never send the demo's zero actions to physical hardware.
 
 ## Editing an adapter
 
