@@ -33,13 +33,14 @@ To run a YAM policy closed loop before real evaluation, use the [YAM MuJoCo chec
 
 ## Robots
 
-`env_cfg_type` in `deploy.yml` names a robot in `utils/robot/_robot_info.json`, which supplies its arm and gripper dimensions. All setups are bimanual:
+`env_cfg_type` in `deploy.yml` names a robot in `utils/robot/_robot_info.json`, which supplies its arm and gripper dimensions. Two-arm robots prefix their keys with `left_` and `right_`; one-arm robots use the keys unprefixed:
 
 | Robot | Key | Status |
 | --- | --- | --- |
 | YAM | `yam` | Primary target: six arm joints and one gripper per side |
 | ARX X5 | `arx_x5` | Used by the π0.5 and OpenWAM simulation checkpoints |
 | Franka FR3 Duo | `franka` | Planned; generic Franka dimensions, FR3 setup not yet qualified |
+| DROID | `droid` | One Franka Panda arm (seven joints) with a Robotiq 2F-85 gripper, as in the DROID dataset and Moravec's RoboLab stations |
 
 Matching dimensions do not make a checkpoint compatible: joint order, units, gripper convention, and cameras must also agree with the evaluator, and a pretrained checkpoint may need embodiment-specific training.
 
