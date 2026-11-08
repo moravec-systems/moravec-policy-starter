@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://moravec.ai/schemas/moravec-policy.v1.json",
+  "$id": "https://schemas.moravecsystems.com/policy/v1/moravec-policy.schema.json",
   "title": "Moravec policy submission manifest",
   "description": "Describes a policy container: how to start it and the observation/action interface it serves. Never contains credentials.",
   "type": "object",
