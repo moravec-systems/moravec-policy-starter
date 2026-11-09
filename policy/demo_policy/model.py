@@ -42,6 +42,16 @@ class Model(ModelTemplate):
                     action[prefix + 'ee_pose'] = np.array([0, 0, 0, 1, 0, 0, 0], dtype=np.float32)
                 action[prefix + 'ee_joint_state'] = np.zeros(gripper_dim, dtype=np.float32)
             chunk.append(action)
+        # Optional: numbers recorded with this chunk for later analysis (INTEGRATION.md,
+        # Debug values). A real policy might report a value estimate or attention weights.
+        self.inferences += 1
+        chunk[0]['debug'] = {
+            'inference': self.inferences,
+            'action_norm': np.array(
+                [np.linalg.norm(np.concatenate([np.ravel(v) for v in a.values()])) for a in chunk],
+                dtype=np.float32,
+            ),
+        }
         return chunk
 
     def get_action_batch(self, env_idx_list=None):
@@ -52,3 +62,4 @@ class Model(ModelTemplate):
 
     def reset(self):
         self.env_indices = [0]
+        self.inferences = 0

@@ -28,6 +28,14 @@ import yaml
 SCHEMA_PATH = Path(__file__).resolve().parent / "schemas" / "moravec-policy.v1.json"
 ROBOTS_PATH = Path(__file__).resolve().parent / "utils" / "robot" / "_robot_info.json"
 DIGEST_RE = re.compile(r"@sha256:[0-9a-f]{64}$")
+# Optional debug values on the first action of a chunk. Same rules as Moravec's robot API
+# (moravec.robot.debug): the station records them with the act that ran the chunk.
+DEBUG_NAME_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$")
+DEBUG_NAME_MAX = 48
+DEBUG_MAX_NAMES = 32
+DEBUG_MAX_ELEMENTS = 4096
+DEBUG_MAX_TOTAL = 16384
+DEBUG_MAX_RANK = 4
 SECRET_PATTERNS = {
     "OpenAI key": re.compile(r"sk-(?:proj-)?[A-Za-z0-9_-]{32,}"),
     "Hugging Face token": re.compile(r"hf_[A-Za-z0-9]{30,}"),
@@ -234,6 +242,32 @@ def synthetic_observation(interface: dict, robot: dict, env_idx: int = 0) -> dic
             "state": state, "vision": vision}
 
 
+def debug_problem(debug) -> str | None:
+    """Why a chunk's debug map breaks the rules, or None."""
+    if not isinstance(debug, dict):
+        return f"debug must be a dict of name to numbers, got {type(debug).__name__}"
+    if len(debug) > DEBUG_MAX_NAMES:
+        return f"debug has {len(debug)} names; at most {DEBUG_MAX_NAMES}"
+    total = 0
+    for name, value in debug.items():
+        if not isinstance(name, str) or len(name) > DEBUG_NAME_MAX or not DEBUG_NAME_RE.match(name):
+            return f"debug name {name!r} must be lowercase words of [a-z0-9_], optionally joined by dots, at most {DEBUG_NAME_MAX} characters"
+        try:
+            array = np.asarray(value)
+        except (TypeError, ValueError) as error:
+            return f"debug {name!r} is not numeric: {error}"
+        if array.dtype != np.bool_ and not (np.issubdtype(array.dtype, np.integer) or np.issubdtype(array.dtype, np.floating)):
+            return f"debug {name!r} must be numeric, got dtype {array.dtype}"
+        if array.ndim > DEBUG_MAX_RANK:
+            return f"debug {name!r} has rank {array.ndim}; at most {DEBUG_MAX_RANK}"
+        if array.size > DEBUG_MAX_ELEMENTS:
+            return f"debug {name!r} has {array.size} elements; at most {DEBUG_MAX_ELEMENTS}"
+        total += array.size
+    if total > DEBUG_MAX_TOTAL:
+        return f"debug has {total} elements in total; at most {DEBUG_MAX_TOTAL}"
+    return None
+
+
 def check_chunk(chunk, interface: dict, robot: dict, report: Report, label: str) -> bool:
     if not isinstance(chunk, list) or not chunk:
         return report.add(f"{label}.chunk", "fail", f"expected a non-empty list of actions, got {type(chunk).__name__}",
@@ -252,7 +286,17 @@ def check_chunk(chunk, interface: dict, robot: dict, report: Report, label: str)
             expected_keys[f"{prefix}ee_pose"] = 7
         expected_keys[f"{prefix}ee_joint_state"] = robot["ee_dim"][index]
     gripper_out = 0
+    debug = None
     for step, action in enumerate(chunk):
+        if isinstance(action, dict) and "debug" in action:
+            if step > 0:
+                return report.add(f"{label}.debug", "fail", f"step {step} carries debug values",
+                                  "ACTION_DEBUG_STEP", "Put the chunk's debug values on its first action only.")
+            action = {key: value for key, value in action.items() if key != "debug"}
+            debug = chunk[0]["debug"]
+            if problem := debug_problem(debug):
+                return report.add(f"{label}.debug", "fail", problem, "ACTION_DEBUG",
+                                  "See INTEGRATION.md, Debug values.")
         if not isinstance(action, dict) or set(action) != set(expected_keys):
             got = sorted(action) if isinstance(action, dict) else type(action).__name__
             return report.add(f"{label}.keys", "fail", f"step {step} has keys {got}, expected {sorted(expected_keys)}",
@@ -271,6 +315,8 @@ def check_chunk(chunk, interface: dict, robot: dict, report: Report, label: str)
                 return report.add(f"{label}.quaternion", "fail", f"step {step} {key} quaternion has norm {np.linalg.norm(value[3:]):.4f}",
                                   "QUATERNION_NOT_UNIT", "Return unit quaternions as [qw, qx, qy, qz].")
     report.add(f"{label}.actions", "pass", f"{len(chunk)} actions with keys {sorted(expected_keys)}, correct shapes, finite")
+    if debug is not None:
+        report.add(f"{label}.debug", "pass", f"debug values {sorted(debug)}")
     if gripper_out:
         report.add(f"{label}.gripper", "warn", f"{gripper_out} gripper values outside [0, 1]", "GRIPPER_RANGE",
                    "Gripper commands are 0 closed to 1 open; the evaluator clips values outside that range.")
