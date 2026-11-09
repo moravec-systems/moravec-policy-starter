@@ -11,6 +11,7 @@ import numpy as np
 from client_server.model_client import WsModelClient
 from client_server.model_server import PolicyServer, PolicyServerConfig
 from moravec_policy.policy.demo_policy.model import Model
+from moravec_policy.validate import debug_problem
 
 REGISTRY = Path(__file__).resolve().parents[1] / 'utils/robot/_robot_info.json'
 
@@ -28,6 +29,12 @@ def check_actions(actions, arm_dims, action_type):
             assert action[key].shape == ((dim,) if action_type == 'joint' else (7,))
             assert np.isfinite(action[key]).all()
             assert action[f'{prefix}ee_joint_state'].shape == (1,)
+    # Debug values ride on the first action only, and survive the transport.
+    debug = actions[0]['debug']
+    assert sorted(debug) == ['action_norm', 'inference'] and debug['inference'] >= 1
+    assert np.asarray(debug['action_norm']).shape == (2,)
+    assert debug_problem(debug) is None
+    assert all('debug' not in action for action in actions[1:])
 
 
 async def main():

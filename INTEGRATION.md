@@ -61,6 +61,27 @@ Observations carry an instruction, named cameras under `vision`, and robot state
 
 For our bimanual joint examples, actions use `left_arm_joint_state`, `right_arm_joint_state`, `left_ee_joint_state`, and `right_ee_joint_state`. End-effector examples replace arm joint arrays with `left_ee_pose` and `right_ee_pose`; the demo uses `[x, y, z, qw, qx, qy, qz]`. A one-arm robot such as `droid` uses the same keys without the prefix: `arm_joint_state` or `ee_pose`, plus `ee_joint_state`. Grippers (`ee_joint_state`) run from 0 closed to 1 open. Moravec's DROID stations report `ee_pose` as the `panda_hand` frame (where the Robotiq gripper mounts) in the arm's base frame; the point between the fingertips is 0.1628 m further along its z axis. Coordinate frames and absolute/delta interpretation must agree with the checkpoint and evaluator. The evaluator executes action chunks and supplies subsequent observations.
 
+## Debug values
+
+A policy can attach intermediate values to a chunk, and Moravec records them in the episode's trace next to what the robot did: a value estimate, attention weights, a planner's subgoal, the number of diffusion steps. Put a `debug` dict on the **first** action of the chunk:
+
+```python
+chunk[0]["debug"] = {
+    "value": 0.83,                      # a scalar
+    "vla.attn": attn,                   # an array, e.g. float32 (heads, tokens)
+    "subgoal": np.array([x, y, z]),     # one value for the whole chunk
+    "row_value": per_row_values,        # or one per row: leading dimension = chunk length
+}
+```
+
+- The map describes the whole chunk (one inference). For per-row data use a leading dimension equal to the number of actions.
+- Names are lowercase words of `[a-z0-9_]`, optionally grouped with dots (`vla.attn`), at most 48 characters.
+- Values are numbers or numeric arrays (booleans become 0/1), at most rank 4. A chunk carries at most 32 names, 4096 elements per value and 16384 in total.
+- Only the first action may carry `debug`; any other key is still rejected. Debug values never change what the robot does, and omitting them changes nothing.
+- A value whose shape differs from that name's first appearance in the episode, or that breaks the caps, is dropped and counted rather than failing the episode. `moravec-validate` reports the same rules as `ACTION_DEBUG` and `ACTION_DEBUG_STEP` failures.
+
+The demo policy reports `inference` (calls since reset) and `action_norm` (one per action).
+
 ## Configuration
 
 `deploy.yml` selects the policy, host, port, action type, environment configuration, and model-specific checkpoint settings. Install the core with `python -m pip install -e .`; follow the model README for its separate runtime and weights.
