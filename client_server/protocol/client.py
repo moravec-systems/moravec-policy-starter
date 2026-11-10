@@ -95,8 +95,8 @@ class PolicyEvalClientConfig:
     # Cap on the websocket closing handshake plus TCP teardown. websockets'
     # asyncio implementation waits indefinitely on its own.
     close_timeout_s: float = 10.0
-    ws_ping_interval_s: float | None = 20.0
-    ws_ping_timeout_s: float | None = 20.0
+    ws_ping_interval_s: float | None = None
+    ws_ping_timeout_s: float | None = None
     proxy: str | Literal[True] | None = None
 
     def __post_init__(self) -> None:

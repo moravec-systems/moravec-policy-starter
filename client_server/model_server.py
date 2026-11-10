@@ -51,8 +51,11 @@ def _ok_payload(result: Any = None) -> dict[str, Any]:
 class PolicyServerConfig:
     host: str = "0.0.0.0"
     port: int = 19000
-    ws_ping_interval_s: float | None = 20.0
-    ws_ping_timeout_s: float | None = 20.0
+    # No keepalive by default: the evaluator checks liveness with its own request timeouts, and
+    # a simulator that blocks for longer than ping_interval + ping_timeout must not lose a
+    # healthy connection (INTEGRATION.md, Configuration).
+    ws_ping_interval_s: float | None = None
+    ws_ping_timeout_s: float | None = None
 
     def __post_init__(self) -> None:
         self.ws_ping_interval_s = normalize_ws_ping(
