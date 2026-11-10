@@ -88,6 +88,8 @@ The demo policy reports `inference` (calls since reset) and `action_norm` (one p
 
 The installed Python namespace is `moravec_policy`; the checkout folder can have any name. Install it with `python -m pip install -e .` in each policy/evaluator environment. External evaluators should import `moravec_policy.policy.<name>.deploy`. `env_cfg_type` names a robot in `utils/robot/_robot_info.json`, which supplies its arm and gripper dimensions; add an entry there for a new robot.
 
+WebSocket keepalive is off by default (`ws_ping_interval_s` and `ws_ping_timeout_s` are null). A policy server must not close a connection because keepalive pings went unanswered: the evaluator checks liveness with its own request timeouts, and a simulator can block for minutes (an Isaac stage build) without the connection being dead. Set both only for a long-lived link across a network you don't control.
+
 ## Remote serving
 
 On the policy machine, with its runtime activated and checkpoint configured:
