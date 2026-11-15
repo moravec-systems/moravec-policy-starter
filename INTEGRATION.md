@@ -7,6 +7,11 @@ Send Moravec two things:
 1. **A container image pinned by digest** (`registry/repository@sha256:…`, linux/amd64) that starts the policy server on port 6000. Build it like the examples in `policy/<name>/Dockerfile`. The simplest package includes the model weights in the image, so one digest identifies everything that runs. Moravec pulls it from your registry using read-only access you grant separately; never put credentials in the image, the manifest, or Git.
 2. **A manifest, `moravec-policy.yaml`**, describing how to start the image and what it expects. Each example folder has one.
 
+**What a Moravec station gives your container.** Build the image for these conditions; the station enforces them:
+- **No network.** Only loopback: no internet, no cloud APIs, nothing on the host. Put the weights in the image; a policy that downloads them at startup, or calls an API on every step, cannot run on a station.
+- **A read-only filesystem.** Only `/tmp` is writable (`TMPDIR` points there), plus any directory the image declares as a `VOLUME`: a mounted cache directory that persists between runs.
+- **Never root.** `USER` must be numeric and non-zero (`uid` or `uid:gid`, neither 0); anything else, including a user name or no `USER`, runs as `65534:65534` (nobody, with `HOME=/tmp`). So keep the image's files readable by that user, and create any `VOLUME` directory writable by it (`RUN mkdir -p /cache && chmod 1777 /cache`).
+
 ```yaml
 schema: moravec.policy/v1
 name: my-policy                      # your name for the policy
@@ -46,7 +51,7 @@ moravec-validate policy/my_policy --run --image my-policy:local  # start the ima
 moravec-validate policy/my_policy --url ws://127.0.0.1:6000      # or test a server you already started
 ```
 
-It checks the manifest against [`schemas/moravec-policy.v1.json`](schemas/moravec-policy.v1.json), looks for credentials in the policy folder, then starts the policy (with `--run`) and tests the contract: readiness, reset, and synthetic observations built from `interface`, checking the returned actions' count, keys, shapes, finite values, gripper range, unit quaternions, batching and latency. Nothing is executed on a robot. Add `--submit` to require a digest-pinned image, `--docker-arg` to pass mounts or other `docker run` options, and `--json` for a machine-readable report in which every failure carries a stable `code` and a `fix`. Moravec runs the same checks before any evaluation, then connects its evaluator to the policy over a private network.
+It checks the manifest against [`schemas/moravec-policy.v1.json`](schemas/moravec-policy.v1.json), looks for credentials in the policy folder, then starts the policy (with `--run`) and tests the contract: readiness, reset, and synthetic observations built from `interface`, checking the returned actions' count, keys, shapes, finite values, gripper range, unit quaternions, batching and latency. Nothing is executed on a robot. Add `--submit` to require a digest-pinned image, `--docker-arg` to pass mounts or other `docker run` options, and `--json` for a machine-readable report in which every failure carries a stable `code` and a `fix`. Moravec runs the same checks before any evaluation, then connects its evaluator to the policy from inside its container: no port is published and the policy has no network (see above).
 
 ## Interface
 
