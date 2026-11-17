@@ -65,6 +65,18 @@
       "items": {"type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$"},
       "description": "Names (never values) of environment variables the policy needs at run time."
     },
+    "model_access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["api"],
+      "properties": {
+        "api": {
+          "const": "openai_chat_completions",
+          "description": "The API the policy calls: OpenAI Chat Completions (POST /v1/chat/completions, GET /v1/models)."
+        }
+      },
+      "description": "The policy calls a hosted language model while it runs. A station gives it no network: it gives it MORAVEC_MODEL_BASE_URL, an endpoint on the container's own loopback that relays the calls to the model the evaluation names (moravec.eval/v1 `model`), and MORAVEC_MODEL_API_KEY, a placeholder to send as the API key. The policy needs no provider key and names none under secrets. Such a policy runs only in evaluations that name a model, on the lockstep clock."
+    },
     "interface": {
       "oneOf": [{"$ref": "#/$defs/standard_interface"}, {"$ref": "#/$defs/native_interface"}]
     }
