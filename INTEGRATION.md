@@ -8,7 +8,7 @@ Send Moravec two things:
 2. **A manifest, `moravec-policy.yaml`**, describing how to start the image and what it expects. Each example folder has one.
 
 **What a Moravec station gives your container.** Build the image for these conditions; the station enforces them:
-- **No network.** Only loopback: no internet, no cloud APIs, nothing on the host. Put the weights in the image; a policy that downloads them at startup, or calls an API on every step, cannot run on a station.
+- **No network.** Only loopback: no internet, no cloud APIs, nothing on the host. Put the weights in the image; a policy that downloads them at startup, or calls an API on every step, cannot run on a station. (The one exception is a hosted language model reached through `model_access`, below.)
 - **A read-only filesystem.** Only `/tmp` is writable (`TMPDIR` points there), plus any directory the image declares as a `VOLUME`: a mounted cache directory that persists between runs.
 - **Never root.** `USER` must be numeric and non-zero (`uid` or `uid:gid`, neither 0); anything else, including a user name or no `USER`, runs as `65534:65534` (nobody, with `HOME=/tmp`). So keep the image's files readable by that user, and create any `VOLUME` directory writable by it (`RUN mkdir -p /cache && chmod 1777 /cache`).
 
@@ -41,6 +41,7 @@ interface:
 | `serve` | Command that starts the policy server, its port, and how long startup may take. |
 | `resources` | GPUs and minimum GPU memory needed to load and run the model. |
 | `secrets` | Names (never values) of environment variables the policy needs at run time, such as an API key. |
+| `model_access` | Optional: `{api: openai_chat_completions}`. The policy calls a hosted language model while it runs. The container still has no network: the station gives it `MORAVEC_MODEL_BASE_URL`, an OpenAI Chat Completions endpoint on the container's own loopback that relays the calls to the model the evaluation names, and `MORAVEC_MODEL_API_KEY`, a placeholder to send as the API key. The policy needs no provider key and lists none under `secrets`. |
 | `interface` | The observation and action format described below: robot, `joint` or `ee` actions, camera names, chunk length, and batching support. A policy with its own native format (like the GR00T example) sets `format: native` and describes its keys in `notes`. |
 
 Before submitting, validate the policy with `moravec-validate`, installed by `pip install -e .`:
